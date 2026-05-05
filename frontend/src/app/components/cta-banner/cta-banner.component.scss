@@ -1,0 +1,104 @@
+@import '../../design/styles.scss';
+
+.cta-banner {
+  margin: 0 $sp-5xl $sp-9xl;
+  background: $bg-card;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-3xl;
+  padding: $sp-7xl;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4xl;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-glow {
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+  border-radius: $border-radius-full;
+  pointer-events: none;
+}
+
+.cta-text {
+  h2 {
+    font-family: $font-outfit;
+    font-size: 28px;
+    font-weight: $fw-extrabold;
+    color: $text-primary;
+    letter-spacing: -0.5px;
+    margin-bottom: $sp-sm;
+    line-height: 1.2;
+  }
+
+  p {
+    font-size: $fs-xl;
+    color: $text-tertiary;
+    line-height: 1.6;
+    max-width: 440px;
+  }
+}
+
+.cta-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-sm;
+  flex-shrink: 0;
+}
+
+.btn-cta-big {
+  background: $primary;
+  border: none;
+  color: #042F2E;
+  font-family: $font-outfit;
+  font-size: $fs-3xl;
+  font-weight: $fw-bold;
+  padding: 16px 36px;
+  border-radius: $border-radius-lg;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background $transition-base, transform $transition-fast,
+    box-shadow $transition-base;
+
+  &:hover {
+    background: $primary-light;
+    transform: translateY(-2px);
+    box-shadow: $shadow-green;
+  }
+}
+
+.cta-note {
+  font-size: $fs-base;
+  color: $text-quaternary;
+}
+
+// ============================================================================
+// RESPONSIVE
+// ============================================================================
+@media (max-width: 768px) {
+  .cta-banner {
+    margin: 0 $sp-lg $sp-6xl;
+    flex-direction: column;
+    padding: $sp-6xl $sp-lg;
+    text-align: center;
+  }
+
+  .cta-text h2 {
+    font-size: 24px;
+  }
+
+  .cta-actions {
+    width: 100%;
+  }
+
+  .btn-cta-big {
+    width: 100%;
+  }
+}
+
