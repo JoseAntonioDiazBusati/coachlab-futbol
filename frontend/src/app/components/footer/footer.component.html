@@ -1,0 +1,39 @@
+<footer class="footer">
+  <div class="footer-in">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="logo" style="font-size: 17px">
+          CoachLab
+          <span>— FÚTBOL —</span>
+        </div>
+        <p>
+          Del dato a la decisión. Análisis deportivo accesible para entrenadores
+          de fútbol base y amateur.
+        </p>
+      </div>
+
+      @for (column of columns; track column.title) {
+        <div class="fcol">
+          <h4>{{ column.title }}</h4>
+          <ul>
+            @for (link of column.links; track link.href) {
+              <li><a [href]="link.href">{{ link.label }}</a></li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-copy">
+        © {{ currentYear }} CoachLab Fútbol. Todos los derechos reservados.
+      </p>
+      <div class="footer-legal">
+        @for (link of legalLinks; track link.href) {
+          <a [href]="link.href">{{ link.label }}</a>
+        }
+      </div>
+    </div>
+  </div>
+</footer>
+
