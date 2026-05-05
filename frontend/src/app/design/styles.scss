@@ -1,0 +1,301 @@
+/**
+ * Estilos globales de CoachLab
+ * Variables, tipografías y estilos base para toda la aplicación
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500&display=swap');
+
+// ============================================================================
+// VARIABLES DE COLOR
+// ============================================================================
+$primary: #10B981;
+$primary-light: #0ECF7E;
+$primary-dark: #0EA572;
+$primary-transparent: rgba(16, 185, 129, 0.1);
+$primary-transparent-15: rgba(16, 185, 129, 0.15);
+$primary-transparent-20: rgba(16, 185, 129, 0.2);
+$primary-transparent-32: rgba(16, 185, 129, 0.32);
+
+$secondary: #00E676;
+
+$bg: #0B0E14;
+$bg-card: #151A23;
+$bg-bar: #0F1318;
+
+$border-light: rgba(42, 49, 60, 0.6);
+$border-dark: #2A313C;
+$border-dark-transparent: rgba(42, 49, 60, 0.4);
+
+$text-primary: #F8FAFC;
+$text-secondary: #94A3B8;
+$text-tertiary: #64748B;
+$text-quaternary: #475569;
+$text-muted: #334155;
+
+$warning: #FACC15;
+$danger: #EF4444;
+
+// Colores de racha
+$win: #10B981;
+$draw: #FACC15;
+$loss: #EF4444;
+
+// ============================================================================
+// TIPOGRAFÍAS
+// ============================================================================
+$font-outfit: 'Outfit', sans-serif;
+$font-inter: 'Inter', sans-serif;
+
+// Font sizes
+$fs-xs: 9px;
+$fs-sm: 10px;
+$fs-base: 11px;
+$fs-md: 12px;
+$fs-lg: 13px;
+$fs-xl: 14px;
+$fs-2xl: 15px;
+$fs-3xl: 16px;
+$fs-4xl: 19px;
+$fs-5xl: 36px;
+$fs-6xl: 50px;
+
+// Font weights
+$fw-regular: 400;
+$fw-medium: 500;
+$fw-semibold: 600;
+$fw-bold: 700;
+$fw-extrabold: 800;
+
+// ============================================================================
+// ESPACIADOS (PADDING / MARGIN)
+// ============================================================================
+$sp-xs: 4px;
+$sp-sm: 8px;
+$sp-md: 12px;
+$sp-lg: 16px;
+$sp-xl: 20px;
+$sp-2xl: 24px;
+$sp-3xl: 32px;
+$sp-4xl: 36px;
+$sp-5xl: 40px;
+$sp-6xl: 48px;
+$sp-7xl: 56px;
+$sp-8xl: 72px;
+$sp-9xl: 80px;
+
+// ============================================================================
+// BORDES Y RADIO
+// ============================================================================
+$border-radius-sm: 4px;
+$border-radius-md: 8px;
+$border-radius-lg: 10px;
+$border-radius-xl: 14px;
+$border-radius-2xl: 16px;
+$border-radius-3xl: 20px;
+$border-radius-pill: 2.75rem;
+$border-radius-full: 50%;
+
+// ============================================================================
+// TRANSICIONES
+// ============================================================================
+$transition-fast: 0.15s;
+$transition-base: 0.2s;
+$transition-medium: 0.25s;
+$transition-slow: 0.3s;
+
+// ============================================================================
+// SOMBRAS
+// ============================================================================
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+$shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+$shadow-green: 0 8px 28px rgba(16, 185, 129, 0.32);
+
+// ============================================================================
+// MIXINS
+// ============================================================================
+@mixin gradient-primary {
+  background: linear-gradient(90deg, $primary, $secondary);
+}
+
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin button-base {
+  border: none;
+  border-radius: $border-radius-lg;
+  font-family: $font-outfit;
+  font-weight: $fw-bold;
+  cursor: pointer;
+  transition: background $transition-base, transform $transition-fast,
+    box-shadow $transition-base;
+  padding: 15px 30px;
+  font-size: $fs-3xl;
+
+  &:active {
+    transform: translateY(-1px);
+  }
+}
+
+@mixin button-primary {
+  @include button-base;
+  background: $primary;
+  color: #042F2E;
+
+  &:hover {
+    background: $primary-light;
+    transform: translateY(-2px);
+    box-shadow: $shadow-green;
+  }
+}
+
+@mixin button-ghost {
+  background: none;
+  border: none;
+  color: $text-secondary;
+  font-family: $font-inter;
+  font-size: $fs-lg;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: $border-radius-md;
+  transition: color $transition-base;
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
+@mixin button-outline {
+  background: none;
+  border: 1.5px solid $border-dark;
+  color: $text-secondary;
+  font-family: $font-inter;
+  font-size: $fs-xl;
+  padding: 14px 26px;
+  border-radius: $border-radius-lg;
+  cursor: pointer;
+  transition: border-color $transition-base, color $transition-base;
+
+  &:hover {
+    border-color: $primary;
+    color: $text-primary;
+  }
+}
+
+// ============================================================================
+// RESET GLOBAL
+// ============================================================================
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: $bg;
+  color: $text-primary;
+  font-family: $font-inter;
+  font-size: $fs-lg;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ============================================================================
+// TIPOGRAFÍA GLOBAL
+// ============================================================================
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: $font-outfit;
+  font-weight: $fw-bold;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+h1 {
+  font-size: $fs-6xl;
+  font-weight: $fw-extrabold;
+  letter-spacing: -1.5px;
+}
+
+h2 {
+  font-size: $fs-6xl;
+  font-weight: $fw-bold;
+  letter-spacing: -0.8px;
+}
+
+h3 {
+  font-size: $fs-3xl;
+  font-weight: $fw-semibold;
+}
+
+p {
+  margin: 0;
+  color: $text-tertiary;
+  font-size: $fs-lg;
+  line-height: 1.7;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
+// ============================================================================
+// UTILIDADES
+// ============================================================================
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 $sp-xl;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(16, 185, 129, 0.35),
+    transparent
+  );
+}
+
