@@ -1,0 +1,33 @@
+<section class="features">
+  <p class="sec-label">Qué incluye el MVP</p>
+  <h2 class="sec-title">
+    Herramientas pensadas<br />
+    para el fútbol real
+  </h2>
+  <p class="sec-sub">
+    No para el Real Madrid. Para el entrenador que prepara el partido del sábado
+    con 30 minutos y quiere decidir mejor que la semana pasada.
+  </p>
+
+  <div class="fgrid">
+    @for (feature of features; track feature.title) {
+      <div class="fcard">
+        <div class="ficon">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 22 22"
+            fill="none"
+            [innerHTML]="getIcon(feature.icon)"
+          ></svg>
+        </div>
+        <h3>{{ feature.title }}</h3>
+        <p>{{ feature.description }}</p>
+        @if (feature.tag) {
+          <span class="ftag">{{ feature.tag }}</span>
+        }
+      </div>
+    }
+  </div>
+</section>
+
