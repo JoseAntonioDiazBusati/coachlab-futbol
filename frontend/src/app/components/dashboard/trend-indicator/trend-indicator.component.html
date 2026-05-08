@@ -1,0 +1,8 @@
+<div class="trend" [class.up]="direction === 'up'" [class.down]="direction === 'down'">
+  <span class="trend-icon">{{ icon }}</span>
+  <span class="trend-value">{{ value }}</span>
+  @if (label) {
+    <span class="trend-label">{{ label }}</span>
+  }
+</div>
+
