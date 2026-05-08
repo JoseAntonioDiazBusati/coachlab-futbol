@@ -1,0 +1,15 @@
+<article class="kpi-card">
+  <div class="kpi-top">
+    <p class="kpi-title">{{ title }}</p>
+    <app-trend-indicator
+      [direction]="trend"
+      [value]="deltaDisplay"
+      [label]="deltaLabel"
+    ></app-trend-indicator>
+  </div>
+  <div class="kpi-value">{{ value }}</div>
+  @if (helper) {
+    <p class="kpi-helper">{{ helper }}</p>
+  }
+</article>
+

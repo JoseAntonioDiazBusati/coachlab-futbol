@@ -1,0 +1,11 @@
+<div class="chart">
+  @for (point of points; track point.label) {
+    <div class="bar">
+      <div class="bar-track">
+        <div class="bar-fill" [style.height.%]="point.value"></div>
+      </div>
+      <span class="bar-label">{{ point.label }}</span>
+    </div>
+  }
+</div>
+

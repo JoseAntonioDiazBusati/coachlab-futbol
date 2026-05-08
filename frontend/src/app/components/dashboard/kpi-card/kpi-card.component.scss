@@ -1,0 +1,58 @@
+@import '../../../design/styles.scss';
+
+.kpi-card {
+  background: $bg-card;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-xl;
+  padding: $sp-lg $sp-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-md;
+  min-height: 140px;
+  transition: border-color $transition-medium, transform $transition-base;
+  animation: fadeUp 0.5s ease both;
+}
+
+.kpi-card:hover {
+  border-color: $primary;
+  transform: translateY(-3px);
+}
+
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-sm;
+}
+
+.kpi-title {
+  font-size: $fs-md;
+  color: $text-tertiary;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+}
+
+.kpi-value {
+  font-family: $font-outfit;
+  font-size: $fs-5xl;
+  font-weight: $fw-extrabold;
+  color: $text-primary;
+  line-height: 1;
+}
+
+.kpi-helper {
+  font-size: $fs-sm;
+  color: $text-quaternary;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

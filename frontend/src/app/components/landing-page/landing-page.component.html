@@ -1,5 +1,5 @@
 <div class="lp">
-  <app-navbar></app-navbar>
+  <app-navbar (login)="openLogin()"></app-navbar>
 
   <app-hero></app-hero>
 
@@ -14,5 +14,12 @@
   <div class="divider"></div>
 
   <app-footer></app-footer>
+
+  <app-auth-panel
+    [open]="authOpen"
+    [mode]="authMode"
+    (close)="closeAuth()"
+    (authenticated)="onAuthenticated()"
+  ></app-auth-panel>
 </div>
 

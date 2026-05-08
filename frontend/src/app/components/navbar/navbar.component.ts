@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 
 @Component({
   selector: 'app-navbar',
@@ -8,12 +8,9 @@ import { Component } from '@angular/core';
   styleUrl: './navbar.component.scss',
 })
 export class NavbarComponent {
-  onLogin() {
-    // TODO: Implementar lógica de inicio de sesión
-  }
+  @Output() login = new EventEmitter<void>();
 
-  onTryFree() {
-    // TODO: Implementar redirección a formulario de registro
+  onLogin() {
+    this.login.emit();
   }
 }
-

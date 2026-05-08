@@ -1,0 +1,14 @@
+<article class="match-card">
+  <div class="match-left">
+    <p class="match-date">{{ match.date }}</p>
+    <h4 class="match-opponent">{{ match.opponent }}</h4>
+    <p class="match-venue">{{ match.venue }}</p>
+  </div>
+  <div class="match-right">
+    <span class="match-score">{{ match.score }}</span>
+    <span class="match-result" [class.win]="resultClass === 'win'" [class.loss]="resultClass === 'loss'">
+      {{ resultLabel }}
+    </span>
+  </div>
+</article>
+

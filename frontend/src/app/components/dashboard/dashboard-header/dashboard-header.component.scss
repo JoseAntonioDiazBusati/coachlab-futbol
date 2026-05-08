@@ -1,0 +1,87 @@
+@import '../../../design/styles.scss';
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(11, 14, 20, 0.85);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid $border-light;
+  padding: 0 $sp-5xl;
+  height: 62px;
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  font-family: $font-outfit;
+  font-weight: $fw-extrabold;
+  font-size: 19px;
+  color: $text-primary;
+  letter-spacing: -0.5px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  flex-shrink: 0;
+
+  span {
+    font-size: $fs-xs;
+    font-weight: $fw-semibold;
+    letter-spacing: 3px;
+    color: $primary;
+    margin-top: 3px;
+  }
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: $sp-xl;
+  margin-left: $sp-6xl;
+}
+
+.nav-link {
+  font-family: $font-inter;
+  font-size: $fs-lg;
+  color: $text-secondary;
+  text-decoration: none;
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+  transition: color $transition-base, border-color $transition-base;
+
+  &:hover {
+    color: $text-primary;
+  }
+
+  &.active {
+    color: $primary;
+    border-bottom-color: $primary;
+  }
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-sm;
+  margin-left: auto;
+}
+
+.btn-ghost {
+  @include button-ghost;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    padding: 0 $sp-lg;
+    gap: $sp-lg;
+  }
+
+  .nav-links {
+    gap: $sp-md;
+    margin-left: $sp-xl;
+  }
+
+  .nav-link {
+    font-size: $fs-base;
+  }
+}
