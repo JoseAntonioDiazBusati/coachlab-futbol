@@ -1,0 +1,200 @@
+<app-dashboard-header></app-dashboard-header>
+
+<section class="plantilla container">
+  <div class="section-head inline">
+    <div>
+      <p class="section-eyebrow">Gestión del equipo</p>
+      <h2 class="section-title">Plantilla</h2>
+      <p class="section-sub">Jugadores, estadísticas acumuladas e índice de rendimiento.</p>
+    </div>
+    <div class="section-actions">
+      @if (equipos.length === 0) {
+        <button class="btn-primary" (click)="abrirFormularioEquipo()">+ Crear equipo</button>
+      } @else {
+        <button class="btn-primary" (click)="abrirFormularioJugador()" [disabled]="!equipoSeleccionado">
+          + Añadir jugador
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Status messages -->
+  @if (error) {
+    <div class="status-banner error">{{ error }}</div>
+  }
+  @if (exito) {
+    <div class="status-banner success">{{ exito }}</div>
+  }
+
+  <!-- No equipos: show create form -->
+  @if (equipos.length === 0 && !cargando) {
+    <div class="empty-state">
+      <p>No hay equipos registrados. Crea uno para empezar a gestionar tu plantilla.</p>
+      <button class="btn-outline" (click)="abrirFormularioEquipo()">Crear mi primer equipo</button>
+    </div>
+  } @else {
+    <!-- Equipo selector -->
+    <div class="equipo-bar">
+      <label class="equipo-label">Equipo:</label>
+      <select class="equipo-select" [ngModel]="equipoSeleccionado?.id" (ngModelChange)="seleccionarEquipoPorId($event)">
+        @for (eq of equipos; track eq.id) {
+          <option [value]="eq.id">{{ eq.nombre }} ({{ eq.categoria || 'Sin categoría' }})</option>
+        }
+      </select>
+      <button class="btn-ghost-sm" (click)="abrirFormularioEquipo()">+ Nuevo equipo</button>
+    </div>
+
+    @if (equipoSeleccionado) {
+      <div class="equipo-info">
+        <span class="equipo-name">{{ equipoSeleccionado.nombre }}</span>
+        @if (equipoSeleccionado.categoria) {
+          <span class="equipo-meta">{{ equipoSeleccionado.categoria }}</span>
+        }
+        @if (equipoSeleccionado.temporada) {
+          <span class="equipo-meta">{{ equipoSeleccionado.temporada }}</span>
+        }
+      </div>
+    }
+  }
+
+  @if (cargando) {
+    <p class="loading-text">Cargando plantilla...</p>
+  } @else if (equipoSeleccionado && jugadores.length === 0) {
+    <div class="empty-state">
+      <p>No hay jugadores en este equipo. Añade el primero.</p>
+      <button class="btn-outline" (click)="abrirFormularioJugador()">Añadir jugador</button>
+    </div>
+  } @else if (equipoSeleccionado) {
+    <div class="table-wrapper">
+      <table class="plantilla-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Jugador</th>
+            <th>Posición</th>
+            <th>Goles</th>
+            <th>Asist.</th>
+            <th>Minutos</th>
+            <th class="col-ire">IRE</th>
+            <th class="col-card">TA</th>
+            <th class="col-card">TR</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (j of jugadores; track j.jugadorId) {
+            <tr>
+              <td class="col-dorsal">{{ j.dorsal ?? '-' }}</td>
+              <td class="col-name">{{ j.nombre }}</td>
+              <td>{{ j.posicion }}</td>
+              <td>{{ j.goles }}</td>
+              <td>{{ j.asistencias }}</td>
+              <td>{{ j.minutos }}</td>
+              <td class="col-ire">
+                <span class="ire-badge" [class.positive]="j.impacto > 0" [class.negative]="j.impacto < 0">
+                  {{ j.impacto.toFixed(1) }}
+                </span>
+              </td>
+              <td class="col-card">
+                @if (j.tarjetasAmarillas > 0) {
+                  <span class="card-yellow">&#9632; {{ j.tarjetasAmarillas }}</span>
+                } @else {
+                  <span class="card-zero">0</span>
+                }
+              </td>
+              <td class="col-card">
+                @if (j.tarjetasRojas > 0) {
+                  <span class="card-red">&#9632; {{ j.tarjetasRojas }}</span>
+                } @else {
+                  <span class="card-zero">0</span>
+                }
+              </td>
+              <td class="col-action">
+                <button class="btn-delete" (click)="eliminarJugador(j.jugadorId)" title="Eliminar jugador">
+                  &#10005;
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Modal: Añadir jugador -->
+  @if (mostrarFormularioJugador) {
+    <div class="modal-overlay" (click)="cerrarFormularioJugador()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">Añadir jugador a {{ equipoSeleccionado?.nombre }}</h3>
+
+        <label class="field">
+          <span>Nombre *</span>
+          <input type="text" [(ngModel)]="nuevo.nombre" placeholder="Ej: Juan" />
+        </label>
+
+        <label class="field">
+          <span>Apellidos</span>
+          <input type="text" [(ngModel)]="nuevo.apellidos" placeholder="Ej: Pérez" />
+        </label>
+
+        <label class="field">
+          <span>Dorsal</span>
+          <input type="number" [(ngModel)]="nuevo.dorsal" placeholder="Ej: 10" min="1" />
+        </label>
+
+        <label class="field">
+          <span>Posición</span>
+          <select [(ngModel)]="nuevo.posicion">
+            <option value="" disabled>Selecciona posición</option>
+            @for (p of posiciones; track p) {
+              <option [value]="p">{{ p }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Edad</span>
+          <input type="number" [(ngModel)]="nuevo.edad" placeholder="Ej: 24" min="1" />
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="cerrarFormularioJugador()">Cancelar</button>
+          <button class="btn-primary" (click)="crearJugador()" [disabled]="!nuevo.nombre.trim()">
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Crear equipo -->
+  @if (mostrarFormularioEquipo) {
+    <div class="modal-overlay" (click)="cerrarFormularioEquipo()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">Nuevo equipo</h3>
+
+        <label class="field">
+          <span>Nombre del equipo *</span>
+          <input type="text" [(ngModel)]="nuevoEquipo.nombre" placeholder="Ej: CD Atletico Rota" />
+        </label>
+
+        <label class="field">
+          <span>Categoría</span>
+          <input type="text" [(ngModel)]="nuevoEquipo.categoria" placeholder="Ej: Amateur Senior" />
+        </label>
+
+        <label class="field">
+          <span>Temporada</span>
+          <input type="text" [(ngModel)]="nuevoEquipo.temporada" placeholder="Ej: 2025/2026" />
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="cerrarFormularioEquipo()">Cancelar</button>
+          <button class="btn-primary" (click)="crearEquipo()" [disabled]="!nuevoEquipo.nombre.trim()">
+            Crear equipo
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>
