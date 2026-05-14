@@ -15,9 +15,8 @@ export class DashboardHeaderComponent {
 
   navItems = [
     { label: 'Dashboard', path: '/dashboard' },
-    { label: 'Plantilla', path: '/dashboard' },
-    { label: 'Pre-partido', path: '/dashboard' },
-    { label: 'Registrar partido', path: '/dashboard' },
+    { label: 'Ligas', path: '/ligas' },
+    { label: 'Plantilla', path: '/plantilla' },
   ];
 
   logout() {

@@ -8,13 +8,9 @@
       <p class="section-sub">Jugadores, estadísticas acumuladas e índice de rendimiento.</p>
     </div>
     <div class="section-actions">
-      @if (equipos.length === 0) {
-        <button class="btn-primary" (click)="abrirFormularioEquipo()">+ Crear equipo</button>
-      } @else {
-        <button class="btn-primary" (click)="abrirFormularioJugador()" [disabled]="!equipoSeleccionado">
-          + Añadir jugador
-        </button>
-      }
+      <button class="btn-primary" (click)="abrirFormularioJugador()" [disabled]="!equipoSeleccionado">
+        + Añadir jugador
+      </button>
     </div>
   </div>
 
@@ -26,11 +22,11 @@
     <div class="status-banner success">{{ exito }}</div>
   }
 
-  <!-- No equipos: show create form -->
+  <!-- No equipos: redirect to ligas -->
   @if (equipos.length === 0 && !cargando) {
     <div class="empty-state">
-      <p>No hay equipos registrados. Crea uno para empezar a gestionar tu plantilla.</p>
-      <button class="btn-outline" (click)="abrirFormularioEquipo()">Crear mi primer equipo</button>
+      <p>No hay equipos registrados. Ve a la sección de Ligas para crear uno.</p>
+      <a class="btn-outline" routerLink="/ligas">Ir a Ligas</a>
     </div>
   } @else {
     <!-- Equipo selector -->
@@ -41,7 +37,6 @@
           <option [value]="eq.id">{{ eq.nombre }} ({{ eq.categoria || 'Sin categoría' }})</option>
         }
       </select>
-      <button class="btn-ghost-sm" (click)="abrirFormularioEquipo()">+ Nuevo equipo</button>
     </div>
 
     @if (equipoSeleccionado) {
@@ -159,42 +154,12 @@
 
         <div class="modal-actions">
           <button class="btn-outline" (click)="cerrarFormularioJugador()">Cancelar</button>
-          <button class="btn-primary" (click)="crearJugador()" [disabled]="!nuevo.nombre.trim()">
-            Guardar
+          <button class="btn-primary" (click)="crearJugador()" [disabled]="!nuevo.nombre.trim() || guardando">
+            {{ guardando ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>
       </div>
     </div>
   }
 
-  <!-- Modal: Crear equipo -->
-  @if (mostrarFormularioEquipo) {
-    <div class="modal-overlay" (click)="cerrarFormularioEquipo()">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <h3 class="modal-title">Nuevo equipo</h3>
-
-        <label class="field">
-          <span>Nombre del equipo *</span>
-          <input type="text" [(ngModel)]="nuevoEquipo.nombre" placeholder="Ej: CD Atletico Rota" />
-        </label>
-
-        <label class="field">
-          <span>Categoría</span>
-          <input type="text" [(ngModel)]="nuevoEquipo.categoria" placeholder="Ej: Amateur Senior" />
-        </label>
-
-        <label class="field">
-          <span>Temporada</span>
-          <input type="text" [(ngModel)]="nuevoEquipo.temporada" placeholder="Ej: 2025/2026" />
-        </label>
-
-        <div class="modal-actions">
-          <button class="btn-outline" (click)="cerrarFormularioEquipo()">Cancelar</button>
-          <button class="btn-primary" (click)="crearEquipo()" [disabled]="!nuevoEquipo.nombre.trim()">
-            Crear equipo
-          </button>
-        </div>
-      </div>
-    </div>
-  }
 </section>
