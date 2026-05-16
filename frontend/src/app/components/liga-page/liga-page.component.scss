@@ -1,0 +1,51 @@
+@import '../../design/styles.scss';
+
+:host {
+  display: block;
+  background: $bg;
+  color: $text-primary;
+  min-height: 100vh;
+}
+
+.liga {
+  padding: $sp-5xl $sp-5xl $sp-8xl;
+}
+
+.section-head {
+  margin-bottom: $sp-2xl;
+}
+
+.section-eyebrow {
+  font-size: $fs-sm;
+  letter-spacing: 3px;
+  color: $primary;
+  text-transform: uppercase;
+  margin-bottom: $sp-xs;
+}
+
+.section-title {
+  font-size: $fs-5xl;
+  color: $text-primary;
+  margin-bottom: 4px;
+}
+
+.section-sub {
+  font-size: $fs-lg;
+  color: $text-tertiary;
+}
+
+.empty-state {
+  text-align: center;
+  padding: $sp-8xl $sp-xl;
+  color: $text-tertiary;
+
+  p {
+    font-size: $fs-xl;
+  }
+}
+
+@media (max-width: 768px) {
+  .liga {
+    padding: $sp-5xl $sp-lg;
+  }
+}
