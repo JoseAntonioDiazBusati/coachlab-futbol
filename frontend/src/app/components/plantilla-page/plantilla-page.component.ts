@@ -8,6 +8,7 @@ import {
   CrearJugadorPayload,
 } from '../../services/jugador.service';
 import { EquipoService, Equipo } from '../../services/equipo.service';
+import { EquipoActivoService } from '../../services/equipo-activo.service';
 
 @Component({
   selector: 'app-plantilla-page',
@@ -19,6 +20,7 @@ import { EquipoService, Equipo } from '../../services/equipo.service';
 export class PlantillaPageComponent implements OnInit {
   private readonly jugadorService = inject(JugadorService);
   private readonly equipoService = inject(EquipoService);
+  private readonly equipoActivo = inject(EquipoActivoService);
   private readonly route = inject(ActivatedRoute);
 
   equipos: Equipo[] = [];
@@ -35,6 +37,14 @@ export class PlantillaPageComponent implements OnInit {
 
   posiciones = ['Portero', 'Defensa', 'Centrocampista', 'Delantero'];
 
+  get porteros(): PlantillaJugador[] {
+    return this.jugadores.filter((j) => j.posicion === 'Portero');
+  }
+
+  get jugadoresCampo(): PlantillaJugador[] {
+    return this.jugadores.filter((j) => j.posicion !== 'Portero');
+  }
+
   ngOnInit(): void {
     const equipoIdParam = this.route.snapshot.queryParamMap.get('equipoId');
     const equipoId = equipoIdParam ? Number(equipoIdParam) : null;
@@ -45,24 +55,25 @@ export class PlantillaPageComponent implements OnInit {
     this.equipoService.listar().subscribe({
       next: (equipos) => {
         this.equipos = equipos;
-        if (seleccionarId !== null) {
-          const equipo = equipos.find((e) => e.id === seleccionarId);
-          if (equipo) this.seleccionarEquipo(equipo);
-          else if (equipos.length > 0 && !this.equipoSeleccionado) {
-            this.seleccionarEquipo(equipos[0]);
-          }
-        } else if (equipos.length > 0 && !this.equipoSeleccionado) {
-          this.seleccionarEquipo(equipos[0]);
+        const id = seleccionarId ?? this.equipoActivo.getId();
+        const equipo =
+          (id !== null ? equipos.find((e) => e.id === id) : null) ??
+          equipos[0] ??
+          null;
+        if (equipo) {
+          this.seleccionarEquipo(equipo);
         }
       },
       error: (err: Error) => {
-        this.error = err?.message || 'No se pudieron cargar los equipos. ¿Está el backend en marcha?';
+        this.error =
+          err?.message ?? 'No se pudieron cargar los equipos.';
       },
     });
   }
 
   seleccionarEquipo(equipo: Equipo): void {
     this.equipoSeleccionado = equipo;
+    this.equipoActivo.setEquipo(equipo.id);
     this.error = null;
     this.cargarPlantilla();
   }
@@ -83,7 +94,7 @@ export class PlantillaPageComponent implements OnInit {
         this.cargando = false;
       },
       error: (err: Error) => {
-        this.error = err?.message || 'Error al cargar la plantilla. Verifica la conexión con el backend.';
+        this.error = err?.message ?? 'Error al cargar la plantilla.';
         this.cargando = false;
       },
     });
@@ -111,7 +122,7 @@ export class PlantillaPageComponent implements OnInit {
         this.guardando = false;
       },
       error: (err: Error) => {
-        this.error = err?.message || 'Error al crear el jugador. Verifica que el backend esté en marcha.';
+        this.error = err?.message ?? 'Error al crear el jugador.';
         this.guardando = false;
       },
     });
@@ -127,7 +138,7 @@ export class PlantillaPageComponent implements OnInit {
         setTimeout(() => (this.exito = null), 4000);
       },
       error: (err: Error) => {
-        this.error = err?.message || 'Error al eliminar el jugador.';
+        this.error = err?.message ?? 'Error al eliminar el jugador.';
       },
     });
   }

@@ -14,7 +14,6 @@
     </div>
   </div>
 
-  <!-- Status messages -->
   @if (error) {
     <div class="status-banner error">{{ error }}</div>
   }
@@ -22,14 +21,12 @@
     <div class="status-banner success">{{ exito }}</div>
   }
 
-  <!-- No equipos: redirect to ligas -->
   @if (equipos.length === 0 && !cargando) {
     <div class="empty-state">
       <p>No hay equipos registrados. Ve a la sección de Ligas para crear uno.</p>
       <a class="btn-outline" routerLink="/ligas">Ir a Ligas</a>
     </div>
   } @else {
-    <!-- Equipo selector -->
     <div class="equipo-bar">
       <label class="equipo-label">Equipo:</label>
       <select class="equipo-select" [ngModel]="equipoSeleccionado?.id" (ngModelChange)="seleccionarEquipoPorId($event)">
@@ -60,60 +57,123 @@
       <button class="btn-outline" (click)="abrirFormularioJugador()">Añadir jugador</button>
     </div>
   } @else if (equipoSeleccionado) {
-    <div class="table-wrapper">
-      <table class="plantilla-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Jugador</th>
-            <th>Posición</th>
-            <th>Goles</th>
-            <th>Asist.</th>
-            <th>Minutos</th>
-            <th class="col-ire">IRE</th>
-            <th class="col-card">TA</th>
-            <th class="col-card">TR</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (j of jugadores; track j.jugadorId) {
+
+    <!-- ── Porteros ───────────────────────────── -->
+    @if (porteros.length > 0) {
+      <div class="subsection-label">Porteros</div>
+      <div class="table-wrapper">
+        <table class="plantilla-table">
+          <thead>
             <tr>
-              <td class="col-dorsal">{{ j.dorsal ?? '-' }}</td>
-              <td class="col-name">{{ j.nombre }}</td>
-              <td>{{ j.posicion }}</td>
-              <td>{{ j.goles }}</td>
-              <td>{{ j.asistencias }}</td>
-              <td>{{ j.minutos }}</td>
-              <td class="col-ire">
-                <span class="ire-badge" [class.positive]="j.impacto > 0" [class.negative]="j.impacto < 0">
-                  {{ j.impacto.toFixed(1) }}
-                </span>
-              </td>
-              <td class="col-card">
-                @if (j.tarjetasAmarillas > 0) {
-                  <span class="card-yellow">&#9632; {{ j.tarjetasAmarillas }}</span>
-                } @else {
-                  <span class="card-zero">0</span>
-                }
-              </td>
-              <td class="col-card">
-                @if (j.tarjetasRojas > 0) {
-                  <span class="card-red">&#9632; {{ j.tarjetasRojas }}</span>
-                } @else {
-                  <span class="card-zero">0</span>
-                }
-              </td>
-              <td class="col-action">
-                <button class="btn-delete" (click)="eliminarJugador(j.jugadorId)" title="Eliminar jugador">
-                  &#10005;
-                </button>
-              </td>
+              <th>#</th>
+              <th>Jugador</th>
+              <th class="col-stat" title="Paradas limpias">PC</th>
+              <th class="col-stat" title="Goles encajados">GE</th>
+              <th class="col-stat" title="Penaltis parados">PP</th>
+              <th>Min.</th>
+              <th class="col-ire">IRE</th>
+              <th class="col-card" title="Tarjetas amarillas">TA</th>
+              <th class="col-card" title="Tarjetas rojas">TR</th>
+              <th></th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (j of porteros; track j.jugadorId) {
+              <tr>
+                <td class="col-dorsal">{{ j.dorsal ?? '-' }}</td>
+                <td class="col-name">{{ j.nombre }}</td>
+                <td class="col-stat">{{ j.paradasLimpias ?? '-' }}</td>
+                <td class="col-stat">{{ j.golesEncajados ?? '-' }}</td>
+                <td class="col-stat">{{ j.penaltisParados ?? '-' }}</td>
+                <td>{{ j.minutos }}</td>
+                <td class="col-ire">
+                  <span class="ire-badge" [class.positive]="j.impacto > 0" [class.negative]="j.impacto < 0">
+                    {{ j.impacto.toFixed(1) }}
+                  </span>
+                </td>
+                <td class="col-card">
+                  @if (j.tarjetasAmarillas > 0) {
+                    <span class="card-yellow">&#9632; {{ j.tarjetasAmarillas }}</span>
+                  } @else {
+                    <span class="card-zero">0</span>
+                  }
+                </td>
+                <td class="col-card">
+                  @if (j.tarjetasRojas > 0) {
+                    <span class="card-red">&#9632; {{ j.tarjetasRojas }}</span>
+                  } @else {
+                    <span class="card-zero">0</span>
+                  }
+                </td>
+                <td class="col-action">
+                  <button class="btn-delete" (click)="eliminarJugador(j.jugadorId)" title="Eliminar">&#10005;</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- ── Jugadores de campo ─────────────────── -->
+    @if (jugadoresCampo.length > 0) {
+      <div class="subsection-label" [class.mt-lg]="porteros.length > 0">Jugadores de campo</div>
+      <div class="table-wrapper">
+        <table class="plantilla-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Jugador</th>
+              <th>Posición</th>
+              <th title="Goles">Goles</th>
+              <th title="Asistencias">Asist.</th>
+              <th>Min.</th>
+              <th class="col-stat" title="Partidos de titular">Tit.</th>
+              <th class="col-ire">IRE</th>
+              <th class="col-card" title="Tarjetas amarillas">TA</th>
+              <th class="col-card" title="Tarjetas rojas">TR</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (j of jugadoresCampo; track j.jugadorId) {
+              <tr>
+                <td class="col-dorsal">{{ j.dorsal ?? '-' }}</td>
+                <td class="col-name">{{ j.nombre }}</td>
+                <td>{{ j.posicion }}</td>
+                <td>{{ j.goles }}</td>
+                <td>{{ j.asistencias }}</td>
+                <td>{{ j.minutos }}</td>
+                <td class="col-stat">{{ j.partidosTitular ?? '-' }}</td>
+                <td class="col-ire">
+                  <span class="ire-badge" [class.positive]="j.impacto > 0" [class.negative]="j.impacto < 0">
+                    {{ j.impacto.toFixed(1) }}
+                  </span>
+                </td>
+                <td class="col-card">
+                  @if (j.tarjetasAmarillas > 0) {
+                    <span class="card-yellow">&#9632; {{ j.tarjetasAmarillas }}</span>
+                  } @else {
+                    <span class="card-zero">0</span>
+                  }
+                </td>
+                <td class="col-card">
+                  @if (j.tarjetasRojas > 0) {
+                    <span class="card-red">&#9632; {{ j.tarjetasRojas }}</span>
+                  } @else {
+                    <span class="card-zero">0</span>
+                  }
+                </td>
+                <td class="col-action">
+                  <button class="btn-delete" (click)="eliminarJugador(j.jugadorId)" title="Eliminar">&#10005;</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
   }
 
   <!-- Modal: Añadir jugador -->

@@ -264,6 +264,25 @@
   text-align: center;
 }
 
+.col-stat {
+  width: 56px;
+  text-align: center;
+}
+
+.subsection-label {
+  font-family: $font-outfit;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: $text-quaternary;
+  margin-bottom: $sp-md;
+
+  &.mt-lg {
+    margin-top: $sp-3xl;
+  }
+}
+
 .ire-badge {
   font-family: $font-outfit;
   font-weight: $fw-bold;

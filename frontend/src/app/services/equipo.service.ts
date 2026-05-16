@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
-import { delay, catchError } from 'rxjs/operators';
+import { delay } from 'rxjs/operators';
 
 export interface Equipo {
   id: number;
@@ -29,10 +29,6 @@ export interface ResumenTemporada {
 export class EquipoService {
   private readonly storageKey = 'coachlab_equipos';
   private equiposSubject = new BehaviorSubject<Equipo[]>(this.loadFromStorage());
-
-  constructor() {
-    this.ensureSeedData();
-  }
 
   listar(): Observable<Equipo[]> {
     return of(this.equiposSubject.value).pipe(delay(300));
@@ -90,37 +86,6 @@ export class EquipoService {
       rachaReciente: ['VICTORIA', 'VICTORIA', 'EMPATE', 'VICTORIA', 'DERROTA'],
     };
     return of(resumen).pipe(delay(300));
-  }
-
-  private ensureSeedData(): void {
-    const equipos = this.equiposSubject.value;
-    if (equipos.length === 0) {
-      const seedEquipos: Equipo[] = [
-        {
-          id: 1,
-          nombre: 'Equipo A',
-          categoria: 'Primera División',
-          temporada: '2023/2024',
-          ciudad: 'Madrid',
-        },
-        {
-          id: 2,
-          nombre: 'Equipo B',
-          categoria: 'Segunda División',
-          temporada: '2023/2024',
-          ciudad: 'Barcelona',
-        },
-        {
-          id: 3,
-          nombre: 'Equipo C',
-          categoria: 'Juveniles',
-          temporada: '2023/2024',
-          ciudad: 'Valencia',
-        },
-      ];
-      this.equiposSubject.next(seedEquipos);
-      this.saveToStorage(seedEquipos);
-    }
   }
 
   private loadFromStorage(): Equipo[] {

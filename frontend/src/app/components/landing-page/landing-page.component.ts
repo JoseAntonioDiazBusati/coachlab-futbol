@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthPanelComponent, AuthMode } from '../auth/auth-panel/auth-panel.component';
 import { NavbarComponent } from '../navbar/navbar.component';
@@ -6,6 +6,7 @@ import { HeroComponent } from '../hero/hero.component';
 import { FeaturesComponent } from '../features/features.component';
 import { CtaBannerComponent } from '../cta-banner/cta-banner.component';
 import { FooterComponent } from '../footer/footer.component';
+import { EquipoActivoService } from '../../services/equipo-activo.service';
 
 @Component({
   selector: 'app-landing-page',
@@ -22,10 +23,11 @@ import { FooterComponent } from '../footer/footer.component';
   styleUrl: './landing-page.component.scss',
 })
 export class LandingPageComponent {
+  private readonly router = inject(Router);
+  private readonly equipoActivo = inject(EquipoActivoService);
+
   authOpen = false;
   authMode: AuthMode = 'login';
-
-  constructor(private readonly router: Router) {}
 
   openLogin() {
     this.authMode = 'login';
@@ -43,6 +45,7 @@ export class LandingPageComponent {
 
   onAuthenticated() {
     this.authOpen = false;
-    this.router.navigate(['/dashboard']);
+    const destino = this.equipoActivo.tieneEquipo() ? '/dashboard' : '/setup';
+    this.router.navigate([destino]);
   }
 }

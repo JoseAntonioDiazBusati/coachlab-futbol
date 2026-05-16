@@ -7,6 +7,7 @@ import { MatchCardComponent, MatchCardData, MatchResult } from './match-card/mat
 import { PerformanceChartComponent, PerformancePoint } from './performance-chart/performance-chart.component';
 import { TrendIndicatorComponent, TrendDirection } from './trend-indicator/trend-indicator.component';
 import { EquipoService, Equipo, ResumenTemporada } from '../../services/equipo.service';
+import { EquipoActivoService } from '../../services/equipo-activo.service';
 
 interface KpiItem {
   title: string;
@@ -36,6 +37,7 @@ export class DashboardPageComponent implements OnInit {
   @Input() embedded = false;
 
   private readonly equipoService = inject(EquipoService);
+  private readonly equipoActivo = inject(EquipoActivoService);
 
   equipos: Equipo[] = [];
   equipoSeleccionado: Equipo | null = null;
@@ -82,14 +84,17 @@ export class DashboardPageComponent implements OnInit {
     this.equipoService.listar().subscribe({
       next: (equipos) => {
         this.equipos = equipos;
-        if (equipos.length > 0 && !this.equipoSeleccionado) {
-          this.seleccionarEquipo(equipos[0]);
+        const activoId = this.equipoActivo.getId();
+        const equipo =
+          equipos.find((e) => e.id === activoId) ?? equipos[0] ?? null;
+        if (equipo) {
+          this.seleccionarEquipo(equipo);
         } else {
           this.cargando = false;
         }
       },
       error: () => {
-        this.error = 'No se pudieron cargar los equipos. ¿Está el backend en marcha?';
+        this.error = 'No se pudieron cargar los equipos.';
         this.cargando = false;
       },
     });
@@ -97,6 +102,7 @@ export class DashboardPageComponent implements OnInit {
 
   seleccionarEquipo(equipo: Equipo): void {
     this.equipoSeleccionado = equipo;
+    this.equipoActivo.setEquipo(equipo.id);
     this.error = null;
     this.cargarResumen();
   }
@@ -149,7 +155,7 @@ export class DashboardPageComponent implements OnInit {
       {
         title: 'Victorias',
         value: `${r.victorias}`,
-        helper: 'Racha positiva' in r ? r.rachaReciente.join(' - ') : 'En temporada',
+        helper: r.rachaReciente.length > 0 ? r.rachaReciente.slice(0, 3).join(' - ') : 'En temporada',
         delta: r.totalPartidos > 0 ? Math.round((r.victorias / r.totalPartidos) * 100) : 0,
         deltaLabel: '% total',
       },
@@ -192,7 +198,7 @@ export class DashboardPageComponent implements OnInit {
 
     this.nextMatch =
       r.totalPartidos > 0
-        ? `+${difGoles >= 0 ? '' : ''}${difGoles} diferencia de goles`
+        ? `${difGoles >= 0 ? '+' : ''}${difGoles} diferencia de goles`
         : 'Sin partidos registrados';
 
     this.performancePoints = this.generarPuntosEvolucion(r);
@@ -227,7 +233,7 @@ export class DashboardPageComponent implements OnInit {
       date: '—',
       venue: i % 2 === 0 ? 'Local' : 'Visitante',
       score: '—',
-      result: resultMap[resultado] || 'E',
+      result: resultMap[resultado] ?? 'E',
     }));
   }
 }
