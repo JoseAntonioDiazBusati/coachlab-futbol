@@ -1,1 +1,9 @@
-{}
+{
+  "/fd-api": {
+    "target": "https://api.football-data.org",
+    "changeOrigin": true,
+    "pathRewrite": { "^/fd-api": "" },
+    "secure": true,
+    "logLevel": "warn"
+  }
+}

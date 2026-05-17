@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, timeout } from 'rxjs/operators';
 
 export interface FdCompeticion {
   id: number;
@@ -22,7 +22,7 @@ export interface FdEquipo {
 
 @Injectable({ providedIn: 'root' })
 export class FootballDataService {
-  private readonly apiBase = 'https://api.football-data.org/v4';
+  private readonly apiBase = '/fd-api/v4';
   private readonly storageKey = 'coachlab_football_api_key';
   private readonly http = inject(HttpClient);
 
@@ -49,7 +49,8 @@ export class FootballDataService {
         headers: { 'X-Auth-Token': key },
       })
       .pipe(
-        map((r) => r.competitions.filter((c) => !!c.code)),
+        timeout(15000),
+        map((r) => (r.competitions ?? []).filter((c) => !!c.code)),
         catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
       );
   }
@@ -63,15 +64,18 @@ export class FootballDataService {
         { headers: { 'X-Auth-Token': key } },
       )
       .pipe(
-        map((r) => r.teams),
+        timeout(15000),
+        map((r) => r.teams ?? []),
         catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
       );
   }
 
-  private mensajeError(err: { status?: number }): string {
-    if (err.status === 403) return 'API key inválida o sin permisos. Verifica tu key en football-data.org.';
-    if (err.status === 429) return 'Límite de peticiones alcanzado. Espera un momento e inténtalo de nuevo.';
-    if (err.status === 404) return 'Liga no encontrada.';
+  private mensajeError(err: { status?: number; name?: string }): string {
+    if (err.name === 'TimeoutError') return 'La petición tardó demasiado. Comprueba tu conexión e inténtalo de nuevo.';
+    if (err.status === 403) return 'API key inválida o sin permisos (403). Verifica tu key en football-data.org.';
+    if (err.status === 429) return 'Límite de peticiones alcanzado (429). Espera un momento e inténtalo de nuevo.';
+    if (err.status === 404) return 'Liga no encontrada (404).';
+    if (err.status) return `Error ${err.status} al conectar con football-data.org.`;
     return 'Error al conectar con football-data.org. Comprueba tu conexión.';
   }
 }
