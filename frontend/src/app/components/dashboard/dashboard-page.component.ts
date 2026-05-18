@@ -1,9 +1,13 @@
-import { Component, Input } from '@angular/core';
+import { Component, inject, Input, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { DecimalPipe } from '@angular/common';
 import { DashboardHeaderComponent } from './dashboard-header/dashboard-header.component';
 import { KpiCardComponent } from './kpi-card/kpi-card.component';
-import { MatchCardComponent, MatchCardData } from './match-card/match-card.component';
+import { MatchCardComponent, MatchCardData, MatchResult } from './match-card/match-card.component';
 import { PerformanceChartComponent, PerformancePoint } from './performance-chart/performance-chart.component';
-import { TrendIndicatorComponent } from './trend-indicator/trend-indicator.component';
+import { TrendIndicatorComponent, TrendDirection } from './trend-indicator/trend-indicator.component';
+import { EquipoService, Equipo, ResumenTemporada } from '../../services/equipo.service';
+import { EquipoActivoService } from '../../services/equipo-activo.service';
 
 interface KpiItem {
   title: string;
@@ -17,6 +21,8 @@ interface KpiItem {
   selector: 'app-dashboard-page',
   standalone: true,
   imports: [
+    FormsModule,
+    DecimalPipe,
     DashboardHeaderComponent,
     KpiCardComponent,
     MatchCardComponent,
@@ -26,48 +32,208 @@ interface KpiItem {
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
 })
-export class DashboardPageComponent {
+export class DashboardPageComponent implements OnInit {
   @Input() showNavbar = true;
   @Input() embedded = false;
 
-  teamName = 'CD Atletico Rota';
-  season = 'Temporada 2025/26 - Liga Provincial Grupo B';
-  nextMatch = 'Proximo rival: UD Trebujena - Sabado 18:00';
+  private readonly equipoService = inject(EquipoService);
+  private readonly equipoActivo = inject(EquipoActivoService);
 
-  trendSummary = {
-    direction: 'up' as const,
-    value: '8%',
-    label: 'vs ultimo trimestre',
+  equipos: Equipo[] = [];
+  equipoSeleccionado: Equipo | null = null;
+  resumen: ResumenTemporada | null = null;
+  cargando = false;
+  error: string | null = null;
+
+  teamName = 'CoachLab';
+  season = 'Sin equipo seleccionado';
+  nextMatch = '';
+
+  trendSummary: { direction: TrendDirection; value: string; label: string } = {
+    direction: 'neutral',
+    value: '0%',
+    label: 'Cargando...',
   };
 
-  kpis: KpiItem[] = [
-    { title: 'Victorias', value: '12', helper: 'Racha positiva', delta: 2, deltaLabel: 'ultimo mes' },
-    { title: 'Derrotas', value: '3', helper: 'Controlado', delta: -1, deltaLabel: 'ultimo mes' },
-    { title: 'Partidos jugados', value: '18', helper: 'Ritmo sostenido', delta: 3, deltaLabel: 'ultimo mes' },
-    { title: 'Goles por partido', value: '2.1', helper: 'Ataque eficiente', delta: 0.2, deltaLabel: 'ultimo mes' },
-    { title: 'Goles en contra por partido', value: '0.9', helper: 'Solidez defensiva', delta: -0.1, deltaLabel: 'ultimo mes' },
-    { title: 'IRE del equipo', value: '73', helper: 'Indice global', delta: 4, deltaLabel: 'ultimo mes' },
-  ];
+  kpis: KpiItem[] = [];
 
   performancePoints: PerformancePoint[] = [
-    { label: 'Ene', value: 48 },
-    { label: 'Feb', value: 52 },
-    { label: 'Mar', value: 58 },
-    { label: 'Abr', value: 60 },
-    { label: 'May', value: 64 },
-    { label: 'Jun', value: 68 },
-    { label: 'Jul', value: 62 },
-    { label: 'Ago', value: 70 },
-    { label: 'Sep', value: 74 },
-    { label: 'Oct', value: 78 },
-    { label: 'Nov', value: 82 },
-    { label: 'Dic', value: 76 },
+    { label: 'Ene', value: 0 },
+    { label: 'Feb', value: 0 },
+    { label: 'Mar', value: 0 },
+    { label: 'Abr', value: 0 },
+    { label: 'May', value: 0 },
+    { label: 'Jun', value: 0 },
+    { label: 'Jul', value: 0 },
+    { label: 'Ago', value: 0 },
+    { label: 'Sep', value: 0 },
+    { label: 'Oct', value: 0 },
+    { label: 'Nov', value: 0 },
+    { label: 'Dic', value: 0 },
   ];
 
-  recentMatches: MatchCardData[] = [
-    { opponent: 'UD Trebujena', date: '07 MAY', venue: 'Local', score: '2 - 1', result: 'V' },
-    { opponent: 'CD Rota B', date: '30 ABR', venue: 'Visitante', score: '1 - 1', result: 'E' },
-    { opponent: 'Atletico Sanluqueno', date: '23 ABR', venue: 'Local', score: '0 - 2', result: 'D' },
-    { opponent: 'Xerez Deportivo', date: '16 ABR', venue: 'Visitante', score: '3 - 0', result: 'V' },
-  ];
+  recentMatches: MatchCardData[] = [];
+
+  ngOnInit(): void {
+    this.cargarEquipos();
+  }
+
+  cargarEquipos(): void {
+    this.cargando = true;
+    this.error = null;
+    this.equipoService.listar().subscribe({
+      next: (equipos) => {
+        this.equipos = equipos;
+        const activoId = this.equipoActivo.getId();
+        const equipo =
+          equipos.find((e) => e.id === activoId) ?? equipos[0] ?? null;
+        if (equipo) {
+          this.seleccionarEquipo(equipo);
+        } else {
+          this.cargando = false;
+        }
+      },
+      error: () => {
+        this.error = 'No se pudieron cargar los equipos.';
+        this.cargando = false;
+      },
+    });
+  }
+
+  seleccionarEquipo(equipo: Equipo): void {
+    this.equipoSeleccionado = equipo;
+    this.equipoActivo.setEquipo(equipo.id);
+    this.error = null;
+    this.cargarResumen();
+  }
+
+  seleccionarEquipoPorId(id: string | number): void {
+    const numericId = typeof id === 'string' ? Number(id) : id;
+    const equipo = this.equipos.find((e) => e.id === numericId);
+    if (equipo) this.seleccionarEquipo(equipo);
+  }
+
+  cargarResumen(): void {
+    if (!this.equipoSeleccionado) return;
+    this.cargando = true;
+    this.error = null;
+    this.equipoService.getResumen(this.equipoSeleccionado.id).subscribe({
+      next: (resumen) => {
+        this.resumen = resumen;
+        this.aplicarResumen(resumen);
+        this.cargando = false;
+      },
+      error: () => {
+        this.error = 'Error al cargar el resumen del equipo.';
+        this.cargando = false;
+      },
+    });
+  }
+
+  private aplicarResumen(r: ResumenTemporada): void {
+    const eq = this.equipoSeleccionado!;
+    this.teamName = eq.nombre;
+    this.season = `${eq.categoria || 'Sin categoría'} · ${eq.temporada || 'Temporada actual'}`;
+
+    const golesPorPartido =
+      r.totalPartidos > 0 ? Math.round((r.totalGolesAFavor / r.totalPartidos) * 10) / 10 : 0;
+    const golesContraPorPartido =
+      r.totalPartidos > 0
+        ? Math.round((r.totalGolesEnContra / r.totalPartidos) * 10) / 10
+        : 0;
+    const difGoles =
+      r.totalPartidos > 0 ? r.totalGolesAFavor - r.totalGolesEnContra : 0;
+
+    const deltaIre = r.ire > 50 ? 2 : r.ire > 30 ? -1 : -3;
+    this.trendSummary = {
+      direction: deltaIre >= 0 ? 'up' : 'down',
+      value: `${Math.round(r.ire)}%`,
+      label: 'Índice compuesto',
+    };
+
+    this.kpis = [
+      {
+        title: 'Victorias',
+        value: `${r.victorias}`,
+        helper: r.rachaReciente.length > 0 ? r.rachaReciente.slice(0, 3).join(' - ') : 'En temporada',
+        delta: r.totalPartidos > 0 ? Math.round((r.victorias / r.totalPartidos) * 100) : 0,
+        deltaLabel: '% total',
+      },
+      {
+        title: 'Derrotas',
+        value: `${r.derrotas}`,
+        helper: 'Controlado',
+        delta: -r.derrotas,
+        deltaLabel: 'en temporada',
+      },
+      {
+        title: 'Partidos jugados',
+        value: `${r.totalPartidos}`,
+        helper: 'Ritmo sostenido',
+        delta: r.totalPartidos,
+        deltaLabel: 'en temporada',
+      },
+      {
+        title: 'Goles por partido',
+        value: `${golesPorPartido}`,
+        helper: 'Ataque eficiente',
+        delta: golesPorPartido >= 1 ? 0.2 : -0.1,
+        deltaLabel: 'último mes',
+      },
+      {
+        title: 'Goles en contra por partido',
+        value: `${golesContraPorPartido}`,
+        helper: 'Solidez defensiva',
+        delta: golesContraPorPartido <= 1 ? -0.1 : 0.3,
+        deltaLabel: 'último mes',
+      },
+      {
+        title: 'IRE del equipo',
+        value: `${Math.round(r.ire)}`,
+        helper: 'Índice global',
+        delta: deltaIre,
+        deltaLabel: 'último mes',
+      },
+    ];
+
+    this.nextMatch =
+      r.totalPartidos > 0
+        ? `${difGoles >= 0 ? '+' : ''}${difGoles} diferencia de goles`
+        : 'Sin partidos registrados';
+
+    this.performancePoints = this.generarPuntosEvolucion(r);
+    this.recentMatches = this.generarUltimosPartidos(r);
+  }
+
+  private generarPuntosEvolucion(r: ResumenTemporada): PerformancePoint[] {
+    const base = Math.max(0, Math.min(100, Math.round(r.ire)));
+    const months = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+    ];
+    const now = new Date().getMonth();
+    return months.map((label, i) => {
+      const progress = Math.min(1, (i + 1) / (now + 1));
+      const value = Math.round(base * progress * 0.8 + base * 0.2);
+      return { label, value };
+    });
+  }
+
+  private generarUltimosPartidos(r: ResumenTemporada): MatchCardData[] {
+    if (!r.rachaReciente || r.rachaReciente.length === 0) {
+      return [];
+    }
+    const resultMap: Record<string, MatchResult> = {
+      VICTORIA: 'V',
+      EMPATE: 'E',
+      DERROTA: 'D',
+    };
+    return r.rachaReciente.map((resultado, i) => ({
+      opponent: `Partido ${i + 1}`,
+      date: '—',
+      venue: i % 2 === 0 ? 'Local' : 'Visitante',
+      score: '—',
+      result: resultMap[resultado] ?? 'E',
+    }));
+  }
 }

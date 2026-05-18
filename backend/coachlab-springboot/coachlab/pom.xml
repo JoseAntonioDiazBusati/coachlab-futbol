@@ -7,18 +7,20 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.0</version>
+        <version>3.4.1</version>
         <relativePath/>
     </parent>
 
     <groupId>com.coachlab</groupId>
     <artifactId>coachlab</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>CoachLab Fútbol</name>
-    <description>Plataforma de análisis deportivo para fútbol base y amateur</description>
+    <name>CoachLab Futbol</name>
+    <description>Plataforma de analisis deportivo para futbol base y amateur</description>
 
     <properties>
         <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>
@@ -52,6 +54,18 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Spring Security (API Key authentication) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- WebClient (HTTP client for external APIs) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
         <!-- Tests -->

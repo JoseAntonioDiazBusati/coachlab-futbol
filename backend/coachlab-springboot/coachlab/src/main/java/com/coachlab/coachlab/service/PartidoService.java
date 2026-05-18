@@ -4,20 +4,24 @@ import com.coachlab.coachlab.model.Partido;
 import com.coachlab.coachlab.repository.PartidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class PartidoService {
 
     private final PartidoRepository partidoRepository;
     private final EquipoService equipoService;
 
+    @Transactional(readOnly = true)
     public List<Partido> listarPorEquipo(Long equipoId) {
         return partidoRepository.findByEquipoIdOrderByFechaDesc(equipoId);
     }
 
+    @Transactional(readOnly = true)
     public Partido buscarPorId(Long id) {
         return partidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Partido no encontrado con id: " + id));

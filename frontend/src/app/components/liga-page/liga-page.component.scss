@@ -1,0 +1,492 @@
+@import '../../design/styles.scss';
+
+:host {
+  display: block;
+  background: $bg;
+  color: $text-primary;
+  min-height: 100vh;
+}
+
+.liga {
+  padding: $sp-5xl $sp-5xl $sp-8xl;
+}
+
+// ── Section head ──────────────────────────────
+.section-head {
+  margin-bottom: $sp-3xl;
+
+  &.inline {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: $sp-lg;
+  }
+}
+
+.section-eyebrow {
+  font-size: $fs-sm;
+  letter-spacing: 3px;
+  color: $primary;
+  text-transform: uppercase;
+  margin-bottom: $sp-xs;
+}
+
+.section-title {
+  font-size: $fs-5xl;
+  color: $text-primary;
+  margin-bottom: 4px;
+}
+
+.section-sub {
+  font-size: $fs-lg;
+  color: $text-tertiary;
+}
+
+.section-actions {
+  display: flex;
+  gap: $sp-md;
+  flex-shrink: 0;
+}
+
+// ── Status banners ────────────────────────────
+.status-banner {
+  padding: $sp-md $sp-lg;
+  border-radius: $border-radius-md;
+  font-size: $fs-xl;
+  margin-bottom: $sp-xl;
+  animation: fadeIn 0.2s ease;
+
+  &.error {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: $danger;
+  }
+
+  &.success {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: $primary;
+  }
+}
+
+// ── Active team card ──────────────────────────
+.equipo-activo-card {
+  display: flex;
+  align-items: center;
+  gap: $sp-xl;
+  background: $bg-card;
+  border: 1px solid $primary;
+  border-radius: $border-radius-2xl;
+  padding: $sp-xl $sp-3xl;
+  margin-bottom: $sp-3xl;
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.08);
+}
+
+.activo-label {
+  font-size: $fs-sm;
+  letter-spacing: 2px;
+  color: $primary;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.activo-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: $sp-md;
+  flex-wrap: wrap;
+}
+
+.activo-nombre {
+  font-family: $font-outfit;
+  font-weight: $fw-bold;
+  font-size: $fs-3xl;
+  color: $text-primary;
+}
+
+.equipo-meta {
+  font-size: $fs-md;
+  color: $text-tertiary;
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  padding: 2px 10px;
+  border-radius: $border-radius-pill;
+}
+
+// ── Collapsible panel ─────────────────────────
+.panel {
+  background: $bg-card;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-2xl;
+  padding: $sp-3xl;
+  margin-bottom: $sp-3xl;
+  animation: fadeIn 0.25s ease;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $sp-2xl;
+}
+
+.panel-title {
+  font-family: $font-outfit;
+  font-size: $fs-4xl;
+  color: $text-primary;
+  font-weight: $fw-semibold;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: $text-quaternary;
+  font-size: $fs-xl;
+  cursor: pointer;
+  padding: $sp-xs $sp-sm;
+  border-radius: $border-radius-sm;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $danger;
+  }
+}
+
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: $sp-md;
+  margin-bottom: $sp-xl;
+}
+
+.step-label {
+  font-size: $fs-lg;
+  color: $text-tertiary;
+}
+
+.btn-back-sm {
+  background: none;
+  border: 1px solid $border-dark;
+  color: $text-tertiary;
+  padding: $sp-xs $sp-md;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  font-size: $fs-md;
+  font-family: $font-inter;
+  transition: border-color $transition-fast, color $transition-fast;
+
+  &:hover {
+    border-color: $text-tertiary;
+    color: $text-primary;
+  }
+}
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-md;
+  margin-top: $sp-xl;
+}
+
+// ── Field ─────────────────────────────────────
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-xs;
+  margin-bottom: $sp-xl;
+
+  label {
+    font-size: $fs-sm;
+    color: $text-quaternary;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  input {
+    background: $bg-bar;
+    border: 1px solid $border-dark;
+    border-radius: $border-radius-md;
+    padding: $sp-md;
+    color: $text-primary;
+    font-family: $font-inter;
+    font-size: $fs-xl;
+    outline: none;
+    transition: border-color $transition-fast;
+    width: 100%;
+
+    &:focus { border-color: $primary; }
+    &::placeholder { color: $text-muted; }
+  }
+}
+
+.field-hint {
+  font-size: $fs-md;
+  color: $text-tertiary;
+
+  strong { color: $text-secondary; }
+}
+
+.fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $sp-xl;
+}
+
+// ── Competitions ──────────────────────────────
+.competicion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $sp-md;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: $sp-xs;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: $border-dark; border-radius: 2px; }
+}
+
+.competicion-card {
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-lg;
+  padding: $sp-md $sp-lg;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color $transition-fast, background $transition-fast;
+
+  &:hover { border-color: rgba(16, 185, 129, 0.5); }
+  &.selected { border-color: $primary; background: $primary-transparent; }
+}
+
+.comp-name {
+  font-family: $font-outfit;
+  font-weight: $fw-semibold;
+  font-size: $fs-xl;
+  color: $text-primary;
+  margin-bottom: 2px;
+}
+
+.comp-area {
+  font-size: $fs-md;
+  color: $text-tertiary;
+}
+
+// ── Teams from API ────────────────────────────
+.equipo-api-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: $sp-sm;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: $sp-xl;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: $border-dark; border-radius: 2px; }
+}
+
+.equipo-api-card {
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-lg;
+  padding: $sp-md;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color $transition-fast;
+
+  &:hover { border-color: rgba(16, 185, 129, 0.5); }
+  &.selected { border-color: $primary; background: $primary-transparent; }
+}
+
+.equipo-tla {
+  font-family: $font-outfit;
+  font-weight: $fw-extrabold;
+  font-size: $fs-4xl;
+  color: $primary;
+  margin-bottom: $sp-xs;
+}
+
+.equipo-api-name {
+  font-size: $fs-md;
+  color: $text-secondary;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+// ── Teams section ─────────────────────────────
+.equipos-section {
+  margin-top: $sp-3xl;
+}
+
+.subsection-title {
+  font-family: $font-outfit;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: $text-quaternary;
+  margin-bottom: $sp-lg;
+}
+
+.equipos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $sp-xl;
+}
+
+.equipo-card {
+  position: relative;
+  background: $bg-card;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-2xl;
+  padding: $sp-2xl;
+  transition: border-color $transition-base;
+
+  &:hover {
+    border-color: rgba(42, 49, 60, 1);
+  }
+
+  &.is-active {
+    border-color: $primary;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
+  }
+}
+
+.active-badge {
+  position: absolute;
+  top: $sp-lg;
+  right: $sp-lg;
+  font-size: $fs-sm;
+  font-family: $font-outfit;
+  font-weight: $fw-semibold;
+  color: $primary;
+  background: $primary-transparent;
+  padding: 2px 10px;
+  border-radius: $border-radius-pill;
+  letter-spacing: 1px;
+}
+
+.eq-nombre {
+  font-family: $font-outfit;
+  font-weight: $fw-bold;
+  font-size: $fs-3xl;
+  color: $text-primary;
+  margin-bottom: $sp-md;
+  padding-right: $sp-8xl;
+}
+
+.eq-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-xs;
+  margin-bottom: $sp-xl;
+}
+
+.eq-meta {
+  font-size: $fs-sm;
+  color: $text-tertiary;
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  padding: 2px 8px;
+  border-radius: $border-radius-pill;
+}
+
+.eq-actions {
+  display: flex;
+  gap: $sp-sm;
+  flex-wrap: wrap;
+}
+
+// ── Buttons ───────────────────────────────────
+.btn-primary {
+  @include button-primary;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  &.active {
+    background: $primary-dark;
+  }
+}
+
+.btn-outline {
+  @include button-outline;
+
+  &.active {
+    border-color: $primary;
+    color: $text-primary;
+  }
+}
+
+.btn-ghost-sm {
+  background: none;
+  border: 1px solid $border-dark;
+  color: $text-tertiary;
+  font-family: $font-inter;
+  font-size: $fs-md;
+  padding: 6px 14px;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: border-color $transition-fast, color $transition-fast;
+
+  &:hover {
+    border-color: $primary;
+    color: $text-primary;
+  }
+}
+
+.btn-ghost-danger {
+  @extend .btn-ghost-sm;
+
+  &:hover {
+    border-color: $danger;
+    color: $danger;
+  }
+}
+
+// ── Misc ──────────────────────────────────────
+.loading-text,
+.loading-msg {
+  text-align: center;
+  padding: $sp-6xl 0;
+  color: $text-tertiary;
+  font-size: $fs-xl;
+}
+
+.empty-state {
+  text-align: center;
+  padding: $sp-8xl $sp-xl;
+  color: $text-tertiary;
+
+  p { font-size: $fs-xl; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s ease;
+}
+
+@media (max-width: 768px) {
+  .liga { padding: $sp-5xl $sp-lg; }
+
+  .section-head.inline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .equipo-activo-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fields-row { grid-template-columns: 1fr; }
+  .equipos-grid { grid-template-columns: 1fr; }
+}

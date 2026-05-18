@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { EquipoActivoService } from '../../../services/equipo-activo.service';
 
 @Component({
   selector: 'app-dashboard-header',
@@ -11,17 +12,18 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class DashboardHeaderComponent {
   private readonly authService = inject(AuthService);
+  private readonly equipoActivo = inject(EquipoActivoService);
   private readonly router = inject(Router);
 
   navItems = [
     { label: 'Dashboard', path: '/dashboard' },
-    { label: 'Plantilla', path: '/dashboard' },
-    { label: 'Pre-partido', path: '/dashboard' },
-    { label: 'Registrar partido', path: '/dashboard' },
+    { label: 'Ligas', path: '/ligas' },
+    { label: 'Plantilla', path: '/plantilla' },
   ];
 
   logout() {
     this.authService.logout();
+    this.equipoActivo.limpiar();
     this.router.navigate(['/']);
   }
 }
