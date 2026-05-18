@@ -11,11 +11,60 @@
   </div>
 
   @if (cargando) {
-    <p class="loading-msg">Cargando jugadores...</p>
-  } @else if (!equipo) {
-    <div class="empty-state">
-      <p>No hay equipo activo. Ve a <a routerLink="/ligas">Ligas</a> para crear o importar uno.</p>
+
+    <!-- ── Cargando ──────────────────────────────── -->
+    <div class="loading-state">
+      <div class="loading-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="loading-msg">Cargando datos del equipo…</p>
     </div>
+
+  } @else if (error) {
+
+    <!-- ── Error al cargar ────────────────────────── -->
+    <div class="empty-page fade-in">
+      <div class="empty-icon icon-error">⚠</div>
+      <h3 class="empty-title">Error al cargar</h3>
+      <p class="empty-sub">{{ error }}</p>
+      <div class="empty-actions">
+        <button class="btn-primary" (click)="cargarEquipo()">Reintentar</button>
+      </div>
+    </div>
+
+  } @else if (!equipo) {
+
+    <!-- ── Sin equipo activo ──────────────────────── -->
+    <div class="empty-page fade-in">
+      <div class="empty-icon">🏟</div>
+      <h3 class="empty-title">Sin equipo activo</h3>
+      <p class="empty-sub">
+        Para preparar tu alineación necesitas tener un equipo registrado.
+        Crea uno manualmente o impórtalo desde football-data.org.
+      </p>
+      <div class="empty-actions">
+        <a class="btn-primary" routerLink="/ligas">Ir a Ligas</a>
+      </div>
+    </div>
+
+  } @else if (sinJugadores) {
+
+    <!-- ── Equipo sin jugadores ───────────────────── -->
+    <div class="empty-page fade-in">
+      <div class="empty-icon">👥</div>
+      <h3 class="empty-title">Plantilla vacía</h3>
+      <p class="empty-sub">
+        <strong>{{ equipo.nombre }}</strong> aún no tiene jugadores.
+        Añade tu plantilla para diseñar la alineación y calcular las probabilidades del encuentro.
+      </p>
+      <div class="empty-actions">
+        <a class="btn-primary" routerLink="/plantilla" [queryParams]="{ equipoId: equipo.id }">
+          Ir a Plantilla
+        </a>
+        <a class="btn-outline" routerLink="/ligas">Cambiar equipo</a>
+      </div>
+    </div>
+
   } @else {
 
     <!-- ── Barra de controles ─────────────────── -->
@@ -163,11 +212,7 @@
           <span class="banco-count">({{ banco.length }})</span>
         </h3>
 
-        @if (jugadores.length === 0) {
-          <div class="empty-state small">
-            <p>Sin jugadores. Añádelos en <a routerLink="/plantilla">Plantilla</a>.</p>
-          </div>
-        } @else if (banco.length === 0) {
+        @if (banco.length === 0) {
           <p class="banco-empty">Todos los jugadores están en el campo.</p>
         } @else {
           <div class="banco-list">

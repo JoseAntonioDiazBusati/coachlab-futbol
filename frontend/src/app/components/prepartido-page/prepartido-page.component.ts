@@ -74,6 +74,12 @@ export class PrepartidoPageComponent implements OnInit {
   equipo: Equipo | null = null;
   jugadores: PlantillaJugador[] = [];
   cargando = false;
+  error: string | null = null;
+
+  /** True once loading is done, a team is set, but the squad is empty. */
+  get sinJugadores(): boolean {
+    return !this.cargando && !this.error && !!this.equipo && this.jugadores.length === 0;
+  }
 
   formacion: Formacion = '4-3-3';
   readonly formaciones: Formacion[] = ['4-3-3', '4-4-2', '3-5-2', '4-2-3-1'];
@@ -109,12 +115,20 @@ export class PrepartidoPageComponent implements OnInit {
 
   cargarEquipo(): void {
     this.cargando = true;
+    this.error = null;
+    this.equipo = null;
+    this.jugadores = [];
+    this.slots = [];
     this.equipoService.listar().subscribe({
       next: equipos => {
         const id = this.equipoActivo.getId();
         this.equipo = (id !== null ? equipos.find(e => e.id === id) : null) ?? equipos[0] ?? null;
         if (this.equipo) this.cargarJugadores();
         else this.cargando = false;
+      },
+      error: (err: Error) => {
+        this.error = err?.message ?? 'No se pudo cargar el equipo.';
+        this.cargando = false;
       },
     });
   }
@@ -125,6 +139,10 @@ export class PrepartidoPageComponent implements OnInit {
       next: jugadores => {
         this.jugadores = jugadores;
         this.inicializarSlots();
+        this.cargando = false;
+      },
+      error: (err: Error) => {
+        this.error = err?.message ?? 'No se pudo cargar la plantilla.';
         this.cargando = false;
       },
     });
