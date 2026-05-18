@@ -89,7 +89,9 @@ export class FootballDataService {
    */
   listarCompeticiones(): Observable<FdCompeticion[]> {
     const key = this.getApiKey();
-    if (!key) return throwError(() => new Error('Sin API key configurada.'));
+    if (!key) return throwError(() => new Error(
+      'No hay API key configurada. Introduce tu clave de football-data.org para continuar.',
+    ));
 
     return this.http
       .get<{ competitions: FdCompeticion[] }>(`${this.apiBase}/competitions`, {
@@ -107,7 +109,9 @@ export class FootballDataService {
    */
   listarEquipos(codigoCompeticion: string): Observable<FdEquipo[]> {
     const key = this.getApiKey();
-    if (!key) return throwError(() => new Error('Sin API key configurada.'));
+    if (!key) return throwError(() => new Error(
+      'La API key ya no está disponible. Vuelve al paso anterior e introdúcela de nuevo.',
+    ));
 
     return this.http
       .get<{ teams: FdEquipo[] }>(

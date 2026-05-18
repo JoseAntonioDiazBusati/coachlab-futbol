@@ -49,6 +49,30 @@ export class LigaPageComponent implements OnInit {
   competicionSeleccionada: FdCompeticion | null = null;
   equiposApi: FdEquipo[] = [];
   equipoApiSeleccionado: FdEquipo | null = null;
+  /** Whether the user is in "change key" mode inside the saved-key view. */
+  cambiarApiKey = false;
+
+  // ── API key helpers ──────────────────────────────
+  get tieneApiKeyGuardada(): boolean {
+    return this.fdService.tieneApiKey();
+  }
+
+  /**
+   * Returns the saved key with the middle characters replaced by bullets,
+   * keeping the first and last 4 characters visible.
+   * e.g. "abc123xyz789" → "abc1••••••xyz7"
+   */
+  get apiKeyMasked(): string {
+    const k = this.fdService.getApiKey() ?? '';
+    if (!k) return '';
+    const visible = 4;
+    if (k.length <= visible * 2) return '•'.repeat(k.length);
+    return (
+      k.slice(0, visible) +
+      '•'.repeat(Math.min(k.length - visible * 2, 10)) +
+      k.slice(-visible)
+    );
+  }
 
   // Manual flow
   equipoManual: EquipoManual = this.nuevoEquipoManual();
@@ -105,6 +129,9 @@ export class LigaPageComponent implements OnInit {
     }
     this.panelAbierto = panel;
     if (panel === 'api') {
+      // Always re-read from localStorage so in-memory value never goes stale.
+      this.apiKey = this.fdService.getApiKey() ?? '';
+      this.cambiarApiKey = false;
       this.apiPaso = 'key';
       this.competiciones = [];
       this.competicionSeleccionada = null;
@@ -118,6 +145,7 @@ export class LigaPageComponent implements OnInit {
 
   cerrarPanel(): void {
     this.panelAbierto = 'ninguno';
+    this.cambiarApiKey = false;
     this.error = null;
   }
 
@@ -128,6 +156,7 @@ export class LigaPageComponent implements OnInit {
       return;
     }
     this.fdService.setApiKey(this.apiKey);
+    this.cambiarApiKey = false;   // lock in the key that was submitted
     this.guardando = true;
     this.error = null;
     this.fdService.listarCompeticiones().subscribe({
@@ -157,6 +186,13 @@ export class LigaPageComponent implements OnInit {
       error: (err: Error) => {
         this.error = err.message;
         this.guardando = false;
+        // Key disappeared mid-session → return the user to the key entry step
+        // instead of leaving them stuck on the 'ligas' screen with no action.
+        if (!this.fdService.tieneApiKey()) {
+          this.apiKey = '';
+          this.cambiarApiKey = false;
+          this.apiPaso = 'key';
+        }
       },
     });
   }

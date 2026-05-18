@@ -202,6 +202,20 @@ describe('FootballDataService', () => {
     expect(errorMsg.toLowerCase()).toContain('red');
   });
 
+  it('listarCompeticiones no-key message includes actionable guidance', () => {
+    let errorMsg = '';
+    service.listarCompeticiones().subscribe({ error: (e: Error) => (errorMsg = e.message) });
+    // Should tell the user what to do, not just state the problem
+    expect(errorMsg.toLowerCase()).toContain('configura');
+  });
+
+  it('listarEquipos no-key message signals the key disappeared mid-session', () => {
+    let errorMsg = '';
+    service.listarEquipos('PL').subscribe({ error: (e: Error) => (errorMsg = e.message) });
+    // Distinct from "no key at all" — signals that the key was lost after the flow started
+    expect(errorMsg.toLowerCase()).toContain('disponible');
+  });
+
   it('uses custom apiBase override when making requests', () => {
     service.setApiKey(KEY);
     service.setApiBase('https://custom-proxy.example.com/v4');
