@@ -8,8 +8,13 @@ import {
 } from '../../services/football-data.service';
 import { EquipoService } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
+import {
+  JugadorService,
+  PlantillaJugador,
+  CrearJugadorPayload,
+} from '../../services/jugador.service';
 
-type Paso = 'metodo' | 'api-key' | 'api-ligas' | 'api-equipos' | 'manual';
+type Paso = 'metodo' | 'api-key' | 'api-ligas' | 'api-equipos' | 'manual' | 'jugadores';
 
 interface EquipoManual {
   nombre: string;
@@ -26,23 +31,25 @@ interface EquipoManual {
   styleUrl: './setup-page.component.scss',
 })
 export class SetupPageComponent {
-  private readonly router = inject(Router);
-  private readonly fdService = inject(FootballDataService);
+  private readonly router        = inject(Router);
+  private readonly fdService     = inject(FootballDataService);
   private readonly equipoService = inject(EquipoService);
-  private readonly equipoActivo = inject(EquipoActivoService);
+  private readonly equipoActivo  = inject(EquipoActivoService);
+  private readonly jugadorService = inject(JugadorService);
 
+  // ── Wizard state ─────────────────────────────────
   paso: Paso = 'metodo';
   cargando = false;
   error: string | null = null;
 
+  // ── API flow ─────────────────────────────────────
   apiKey = this.fdService.getApiKey() ?? '';
-
   competiciones: FdCompeticion[] = [];
   competicionSeleccionada: FdCompeticion | null = null;
-
   equiposApi: FdEquipo[] = [];
   equipoApiSeleccionado: FdEquipo | null = null;
 
+  // ── Manual flow ──────────────────────────────────
   equipoManual: EquipoManual = {
     nombre: '',
     categoria: '',
@@ -50,11 +57,36 @@ export class SetupPageComponent {
     ciudad: '',
   };
 
+  // ── Jugadores step ───────────────────────────────
+  equipoRecienCreadoId: number | null = null;
+  equipoRecienCreadoNombre = '';
+  jugadoresAgregados: PlantillaJugador[] = [];
+  guardandoJugador = false;
+
+  readonly posiciones = ['Portero', 'Defensa', 'Centrocampista', 'Delantero'];
+
+  nuevoJugador: CrearJugadorPayload = this.jugadorVacio();
+
+  // ── Navigation ───────────────────────────────────
   elegirMetodo(metodo: 'api' | 'manual'): void {
     this.error = null;
     this.paso = metodo === 'api' ? 'api-key' : 'manual';
   }
 
+  volver(): void {
+    this.error = null;
+    const prevPaso: Record<Paso, Paso> = {
+      'metodo':     'metodo',
+      'api-key':    'metodo',
+      'api-ligas':  'api-key',
+      'api-equipos': 'api-ligas',
+      'manual':     'metodo',
+      'jugadores':  'manual',   // safety fallback (button not shown in this step)
+    };
+    this.paso = prevPaso[this.paso];
+  }
+
+  // ── API flow methods ─────────────────────────────
   cargarCompeticiones(): void {
     if (!this.apiKey.trim()) {
       this.error = 'Introduce una API key válida.';
@@ -121,6 +153,7 @@ export class SetupPageComponent {
       });
   }
 
+  // ── Manual flow methods ──────────────────────────
   crearEquipoManual(): void {
     if (!this.equipoManual.nombre.trim()) {
       this.error = 'El nombre del equipo es obligatorio.';
@@ -138,7 +171,12 @@ export class SetupPageComponent {
       .subscribe({
         next: (equipo) => {
           this.equipoActivo.setEquipo(equipo.id);
-          this.router.navigate(['/dashboard']);
+          this.equipoRecienCreadoId = equipo.id;
+          this.equipoRecienCreadoNombre = equipo.nombre;
+          this.jugadoresAgregados = [];
+          this.nuevoJugador = this.jugadorVacio();
+          this.cargando = false;
+          this.paso = 'jugadores';   // ← go to player-addition step, not dashboard
         },
         error: (err: Error) => {
           this.error = err.message;
@@ -147,15 +185,59 @@ export class SetupPageComponent {
       });
   }
 
-  volver(): void {
+  // ── Jugadores step methods ───────────────────────
+  agregarJugador(): void {
+    if (!this.nuevoJugador.nombre.trim()) {
+      this.error = 'El nombre del jugador es obligatorio.';
+      return;
+    }
+    if (!this.nuevoJugador.posicion) {
+      this.error = 'Selecciona una posición para el jugador.';
+      return;
+    }
+    if (this.equipoRecienCreadoId === null || this.guardandoJugador) return;
+
     this.error = null;
-    const prevPaso: Record<Paso, Paso> = {
-      'metodo': 'metodo',
-      'api-key': 'metodo',
-      'api-ligas': 'api-key',
-      'api-equipos': 'api-ligas',
-      'manual': 'metodo',
-    };
-    this.paso = prevPaso[this.paso];
+    this.guardandoJugador = true;
+
+    this.jugadorService.crear(this.equipoRecienCreadoId, this.nuevoJugador).subscribe({
+      next: (jugador) => {
+        this.jugadoresAgregados = [...this.jugadoresAgregados, jugador];
+        this.nuevoJugador = this.jugadorVacio();
+        this.guardandoJugador = false;
+      },
+      error: (err: Error) => {
+        this.error = err.message;
+        this.guardandoJugador = false;
+      },
+    });
+  }
+
+  quitarJugador(jugadorId: number): void {
+    if (this.equipoRecienCreadoId === null) return;
+    this.jugadorService.eliminar(this.equipoRecienCreadoId, jugadorId).subscribe({
+      next: () => {
+        this.jugadoresAgregados = this.jugadoresAgregados.filter(
+          j => j.jugadorId !== jugadorId,
+        );
+      },
+    });
+  }
+
+  /** Navigate to plantilla to see the newly added players. */
+  verPlantilla(): void {
+    this.router.navigate(['/plantilla'], {
+      queryParams: { equipoId: this.equipoRecienCreadoId },
+    });
+  }
+
+  /** Skip player addition and go straight to the dashboard. */
+  saltarJugadores(): void {
+    this.router.navigate(['/dashboard']);
+  }
+
+  // ── Helpers ─────────────────────────────────────
+  private jugadorVacio(): CrearJugadorPayload {
+    return { nombre: '', apellidos: '', dorsal: undefined, posicion: '', edad: undefined };
   }
 }

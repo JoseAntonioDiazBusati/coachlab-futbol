@@ -209,9 +209,11 @@ export class LigaPageComponent implements OnInit {
           this.equipoActivo.setEquipo(equipo.id);
           this.guardando = false;
           this.panelAbierto = 'ninguno';
-          this.cargarEquipos();
-          this.exito = `${equipo.nombre} creado y activado.`;
-          setTimeout(() => (this.exito = null), 3500);
+          // Navigate to plantilla so the user can add players immediately.
+          // The ?nuevo=true flag auto-opens the add-player form.
+          this.router.navigate(['/plantilla'], {
+            queryParams: { equipoId: equipo.id, nuevo: 'true' },
+          });
         },
         error: (err: Error) => {
           this.error = err.message;

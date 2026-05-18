@@ -32,6 +32,8 @@ export class PlantillaPageComponent implements OnInit {
   exito: string | null = null;
 
   mostrarFormularioJugador = false;
+  /** Set to true when arriving from a "new team" flow to auto-open the form. */
+  private abrirFormularioAlCargar = false;
 
   nuevo: CrearJugadorPayload = this.limpiarFormularioJugador();
 
@@ -48,6 +50,9 @@ export class PlantillaPageComponent implements OnInit {
   ngOnInit(): void {
     const equipoIdParam = this.route.snapshot.queryParamMap.get('equipoId');
     const equipoId = equipoIdParam ? Number(equipoIdParam) : null;
+    // ?nuevo=true → auto-open the add-player form once the squad loads
+    this.abrirFormularioAlCargar =
+      this.route.snapshot.queryParamMap.get('nuevo') === 'true';
     this.cargarEquipos(equipoId);
   }
 
@@ -92,6 +97,11 @@ export class PlantillaPageComponent implements OnInit {
       next: (data) => {
         this.jugadores = data;
         this.cargando = false;
+        // Auto-open the form when arriving from a new-team flow
+        if (this.abrirFormularioAlCargar) {
+          this.abrirFormularioAlCargar = false;
+          this.mostrarFormularioJugador = true;
+        }
       },
       error: (err: Error) => {
         this.error = err?.message ?? 'Error al cargar la plantilla.';
