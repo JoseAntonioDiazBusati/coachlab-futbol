@@ -197,14 +197,21 @@
           <input type="number" [(ngModel)]="nuevo.dorsal" placeholder="Ej: 10" min="1" />
         </label>
 
-        <label class="field">
-          <span>Posición</span>
-          <select [(ngModel)]="nuevo.posicion">
+        <label class="field" [class.field--error]="posicionInvalida">
+          <span>Posición *</span>
+          <select
+            [(ngModel)]="nuevo.posicion"
+            (ngModelChange)="onPosicionChange()"
+            [attr.aria-invalid]="posicionInvalida || null"
+          >
             <option value="" disabled>Selecciona posición</option>
             @for (p of posiciones; track p) {
               <option [value]="p">{{ p }}</option>
             }
           </select>
+          @if (posicionInvalida) {
+            <span class="field-error-msg">Selecciona una posición antes de guardar</span>
+          }
         </label>
 
         <label class="field">
@@ -214,7 +221,11 @@
 
         <div class="modal-actions">
           <button class="btn-outline" (click)="cerrarFormularioJugador()">Cancelar</button>
-          <button class="btn-primary" (click)="crearJugador()" [disabled]="!nuevo.nombre.trim() || guardando">
+          <button
+            class="btn-primary"
+            (click)="crearJugador()"
+            [disabled]="!nuevo.nombre.trim() || !nuevo.posicion || guardando"
+          >
             {{ guardando ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>

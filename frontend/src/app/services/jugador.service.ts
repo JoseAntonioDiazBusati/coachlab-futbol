@@ -61,6 +61,13 @@ export class JugadorService {
     equipoId: number,
     payload: CrearJugadorPayload,
   ): Observable<PlantillaJugador> {
+    if (!payload.nombre?.trim()) {
+      return throwError(() => new Error('El nombre del jugador es obligatorio.'));
+    }
+    if (!payload.posicion?.trim()) {
+      return throwError(() => new Error('La posición del jugador es obligatoria.'));
+    }
+
     const data = this.jugadoresSubject.value;
     if (!data[equipoId]) {
       data[equipoId] = [];

@@ -32,6 +32,8 @@ export class PlantillaPageComponent implements OnInit {
   exito: string | null = null;
 
   mostrarFormularioJugador = false;
+  /** Marks the position select as invalid after a failed save attempt. */
+  posicionInvalida = false;
   /** Set to true when arriving from a "new team" flow to auto-open the form. */
   private abrirFormularioAlCargar = false;
 
@@ -112,20 +114,41 @@ export class PlantillaPageComponent implements OnInit {
 
   abrirFormularioJugador(): void {
     this.mostrarFormularioJugador = true;
+    this.posicionInvalida = false;
     this.nuevo = this.limpiarFormularioJugador();
   }
 
   cerrarFormularioJugador(): void {
     this.mostrarFormularioJugador = false;
+    this.posicionInvalida = false;
+  }
+
+  /** Called from the template when the user picks a position — clears the field error. */
+  onPosicionChange(): void {
+    this.posicionInvalida = false;
+    this.error = null;
   }
 
   crearJugador(): void {
-    if (!this.nuevo.nombre.trim() || !this.equipoSeleccionado || this.guardando) return;
+    if (!this.equipoSeleccionado || this.guardando) return;
+
+    if (!this.nuevo.nombre.trim()) {
+      this.error = 'El nombre del jugador es obligatorio.';
+      return;
+    }
+    if (!this.nuevo.posicion) {
+      this.posicionInvalida = true;
+      this.error = 'Selecciona una posición para el jugador.';
+      return;
+    }
+
     this.error = null;
+    this.posicionInvalida = false;
     this.guardando = true;
     this.jugadorService.crear(this.equipoSeleccionado.id, this.nuevo).subscribe({
       next: () => {
         this.cerrarFormularioJugador();
+        this.posicionInvalida = false;
         this.cargarPlantilla();
         this.exito = 'Jugador añadido correctamente.';
         setTimeout(() => (this.exito = null), 4000);
