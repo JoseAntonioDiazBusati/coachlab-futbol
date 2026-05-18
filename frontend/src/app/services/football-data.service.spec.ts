@@ -82,6 +82,15 @@ describe('FootballDataService', () => {
     expect(service.getApiBase()).toBe('https://my-proxy.example.com/v4');
   });
 
+  it('setApiBase normalizes before storing — trailing slash is absent in localStorage', () => {
+    service.setApiBase('https://my-proxy.example.com/v4/');
+    // Normalization must happen at save time, not only at read time, so that
+    // any direct localStorage reads (e.g. devtools) also see clean values.
+    expect(localStorage.getItem('coachlab_fd_api_base')).toBe(
+      'https://my-proxy.example.com/v4',
+    );
+  });
+
   // ── listarCompeticiones ──────────────────────────
 
   it('listarCompeticiones errors when no API key', () => {
@@ -192,14 +201,31 @@ describe('FootballDataService', () => {
     expect(errorMsg).toContain('404');
   });
 
-  it('returns network/CORS message for status 0', () => {
+  // status 0 via proxy path (dev) — "proxy not running" guidance
+  it('returns proxy-not-running message for status 0 when using dev proxy path', () => {
     service.setApiKey(KEY);
+    // apiBase is '/fd-api/v4' (dev environment default — no override set)
     let errorMsg = '';
     service.listarCompeticiones().subscribe({ error: (e: Error) => (errorMsg = e.message) });
     httpMock
       .expectOne('/fd-api/v4/competitions')
       .error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
-    expect(errorMsg.toLowerCase()).toContain('red');
+    expect(errorMsg.toLowerCase()).toContain('red');     // "error de red"
+    expect(errorMsg.toLowerCase()).toContain('proxy');   // actionable: proxy is the cause
+    expect(errorMsg.toLowerCase()).not.toContain('cors');
+  });
+
+  // status 0 via direct URL (prod) — CORS guidance
+  it('returns CORS guidance for status 0 when using a direct https URL', () => {
+    service.setApiKey(KEY);
+    service.setApiBase('https://api.football-data.org/v4'); // simulate prod environment
+    let errorMsg = '';
+    service.listarCompeticiones().subscribe({ error: (e: Error) => (errorMsg = e.message) });
+    httpMock
+      .expectOne('https://api.football-data.org/v4/competitions')
+      .error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
+    expect(errorMsg.toLowerCase()).toContain('cors');    // CORS is the likely cause
+    expect(errorMsg.toLowerCase()).toContain('proxy');   // suggest a reverse proxy as fix
   });
 
   it('listarCompeticiones no-key message includes actionable guidance', () => {

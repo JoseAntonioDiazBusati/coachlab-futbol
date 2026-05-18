@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { map, catchError, timeout } from 'rxjs/operators';
+import { Observable, throwError, timeout } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface FdCompeticion {
@@ -56,9 +56,10 @@ export class FootballDataService {
 
   setApiBase(base: string): void {
     if (typeof window === 'undefined') return;
-    const trimmed = base.trim();
-    if (trimmed) {
-      window.localStorage.setItem(this.STORAGE_API_BASE, trimmed);
+    // Normalize at storage time so the stored value is always clean.
+    const normalized = base.trim().replace(/\/+$/, '');
+    if (normalized) {
+      window.localStorage.setItem(this.STORAGE_API_BASE, normalized);
     } else {
       window.localStorage.removeItem(this.STORAGE_API_BASE);
     }
@@ -141,13 +142,25 @@ export class FootballDataService {
       return 'La petición tardó más de 15 s. Comprueba tu conexión e inténtalo de nuevo.';
     }
     switch (err.status) {
-      case 0:
+      case 0: {
+        // A relative path means we're going through the dev-server proxy.
+        // An absolute URL means a direct browser-to-API call (production).
+        const usingProxy = !this.apiBase.startsWith('http');
+        if (usingProxy) {
+          return (
+            `Error de red al contactar con el proxy de desarrollo (${this.apiBase}). ` +
+            `Comprueba que 'ng serve' está en ejecución ` +
+            `y que proxy.conf.json apunta correctamente al destino.`
+          );
+        }
         return (
-          'No se pudo conectar con football-data.org (error de red). ' +
-          'Posibles causas: sin conexión a internet, CORS bloqueado por el navegador ' +
-          'o cortafuegos corporativo. ' +
-          `URL base actual: ${this.apiBase}.`
+          `No se pudo conectar con football-data.org (${this.apiBase}). ` +
+          `Posibles causas: sin conexión a internet, CORS bloqueado por el navegador ` +
+          `o plan gratuito sin soporte CORS. ` +
+          `Si el problema persiste en producción, considera servir la SPA ` +
+          `desde un servidor con proxy inverso hacia football-data.org.`
         );
+      }
       case 400:
         return 'Petición incorrecta (400). Verifica el código de la competición.';
       case 403:
