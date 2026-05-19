@@ -1,17 +1,149 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, finalize, switchMap, takeUntil } from 'rxjs/operators';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
+import { JugadorService, CrearJugadorPayload } from '../../services/jugador.service';
+import { PartidoService, PartidoImportado } from '../../services/partido.service';
 import {
   FootballDataService,
   FdCompeticion,
   FdEquipo,
+  FdGoleador,
+  FdJugadorSquad,
+  FdMatch,
+  FdBooking,
 } from '../../services/football-data.service';
+import { getCurrentSeason, getCurrentSeasonYear } from '../../utils/temporada.utils';
+
+// ── Pure helpers (no component state needed) ─────────────────────────────────
+
+/**
+ * Mapea la posición en inglés de football-data.org al vocabulario español
+ * que usa `JugadorService` para validar posiciones.
+ *
+ * La API devuelve valores exactos ('Goalkeeper', 'Defender', 'Midfielder',
+ * 'Attacker') pero también puede enviar `null` para jugadores sin posición
+ * registrada.  El switch-case exacto más keyword fallback cubre ambos casos.
+ */
+function mapFdPosicion(position: string | null | undefined): string {
+  if (!position) return 'Centrocampista';
+  switch (position) {
+    case 'Goalkeeper': return 'Portero';
+    case 'Defender':   return 'Defensa';
+    case 'Midfielder': return 'Centrocampista';
+    case 'Attacker':   return 'Delantero';
+    default: {
+      // Keyword fallback for unexpected / future API values.
+      const p = position.toLowerCase();
+      if (p.includes('goal') || p.includes('keeper') || p.includes('portero'))
+        return 'Portero';
+      if (p.includes('defend') || p.includes('back') || p.includes('defens'))
+        return 'Defensa';
+      if (p.includes('attack') || p.includes('forward') || p.includes('winger') ||
+          p.includes('striker') || p.includes('delan'))
+        return 'Delantero';
+      return 'Centrocampista';
+    }
+  }
+}
+
+/**
+ * Convierte un `FdMatch` al formato `PartidoImportado` desde la perspectiva
+ * del equipo con ID `fdTeamId`.
+ */
+function mapFdMatchToPartido(match: FdMatch, fdTeamId: number): PartidoImportado {
+  const esLocal      = match.homeTeam.id === fdTeamId;
+  const gF           = match.score.fullTime;
+  const golesNuestros = esLocal ? (gF.home ?? 0) : (gF.away ?? 0);
+  const golesRivales  = esLocal ? (gF.away ?? 0) : (gF.home ?? 0);
+  const rival         = esLocal
+    ? (match.awayTeam.shortName ?? match.awayTeam.name)
+    : (match.homeTeam.shortName ?? match.homeTeam.name);
+
+  const resultado: 'VICTORIA' | 'EMPATE' | 'DERROTA' =
+    golesNuestros > golesRivales ? 'VICTORIA' :
+    golesNuestros < golesRivales ? 'DERROTA'  : 'EMPATE';
+
+  return {
+    rival,
+    fecha: match.utcDate.split('T')[0],
+    esLocal,
+    golesNuestros,
+    golesRivales,
+    resultado,
+  };
+}
+
+interface MatchStats {
+  amarillas: number;
+  rojas: number;
+  minutos: number;
+}
+
+/**
+ * Agrega tarjetas y minutos jugados de una lista de partidos finalizados,
+ * desde la perspectiva del equipo con ID `fdTeamId`.
+ *
+ * Fuente de datos (campos de `FdMatch` documentados en football-data.org):
+ *   · `bookings[]`            → tarjetas amarillas/rojas por jugador
+ *   · `homeTeam.lineup[]`     → alineación titular (90 min si no fue sustituido)
+ *   · `substitutions[]`       → minuto de salida/entrada para calcular tiempo exacto
+ *
+ * Cálculo de minutos por partido:
+ *   · Titular no sustituido          → 90 min
+ *   · Titular sustituido en minuto X → X min
+ *   · Suplente que entra en minuto X → (90 − X) min
+ *
+ * Todos los arrays se tratan como opcionales: si la API no los devuelve
+ * (plan gratuito o partido sin datos detallados), se usa `?? []`.
+ */
+export function agregarStatsDePartidos(
+  partidos: FdMatch[],
+  fdTeamId: number,
+): Map<number, MatchStats> {
+  const mapa = new Map<number, MatchStats>();
+
+  function obtener(id: number): MatchStats {
+    if (!mapa.has(id)) mapa.set(id, { amarillas: 0, rojas: 0, minutos: 0 });
+    return mapa.get(id)!;
+  }
+
+  for (const match of partidos) {
+    // ── Tarjetas (bookings) ─────────────────────────────────────────────────
+    for (const b of (match.bookings ?? []) as FdBooking[]) {
+      if (b.team?.id !== fdTeamId || !b.player?.id) continue;
+      const stats = obtener(b.player.id);
+      if (b.card === 'YELLOW') {
+        stats.amarillas++;
+      } else if (b.card === 'RED' || b.card === 'YELLOW_RED') {
+        stats.rojas++;
+      }
+    }
+
+    // ── Minutos jugados (lineup + substitutions) ────────────────────────────
+    const ourTeam = match.homeTeam.id === fdTeamId ? match.homeTeam : match.awayTeam;
+    const subs    = (match.substitutions ?? []).filter(s => s.team?.id === fdTeamId);
+
+    for (const player of (ourTeam.lineup ?? [])) {
+      const subOut = subs.find(s => s.playerOut?.id === player.id);
+      obtener(player.id).minutos += subOut ? subOut.minute : 90;
+    }
+
+    for (const sub of subs) {
+      if (!sub.playerIn?.id) continue;
+      obtener(sub.playerIn.id).minutos += Math.max(0, 90 - sub.minute);
+    }
+  }
+
+  return mapa;
+}
 
 type Panel = 'ninguno' | 'api' | 'manual';
-type ApiPaso = 'key' | 'ligas' | 'equipos';
+type ApiPaso = 'ligas' | 'equipos';
 
 interface EquipoManual {
   nombre: string;
@@ -27,34 +159,57 @@ interface EquipoManual {
   templateUrl: './liga-page.component.html',
   styleUrl: './liga-page.component.scss',
 })
-export class LigaPageComponent implements OnInit {
-  private readonly equipoService = inject(EquipoService);
-  private readonly equipoActivo = inject(EquipoActivoService);
-  private readonly fdService = inject(FootballDataService);
-  private readonly router = inject(Router);
+export class LigaPageComponent implements OnInit, OnDestroy {
+  private readonly equipoService  = inject(EquipoService);
+  private readonly equipoActivo   = inject(EquipoActivoService);
+  private readonly fdService      = inject(FootballDataService);
+  private readonly jugadorService = inject(JugadorService);
+  private readonly partidoService = inject(PartidoService);
+  private readonly router         = inject(Router);
+
+  /**
+   * Emitting here cancels any in-flight football-data.org request.
+   * Used by `abrirPanel()` (toggle close) and `cerrarPanel()`.
+   */
+  private readonly cancelApi$ = new Subject<void>();
 
   equipos: Equipo[] = [];
   equipoActivoActual: Equipo | null = null;
   cargando = false;
   guardando = false;
+  /** Context-aware message shown in the panel loading spinner. */
+  loadingMsg = 'Cargando...';
   error: string | null = null;
   exito: string | null = null;
 
   panelAbierto: Panel = 'ninguno';
 
   // API flow
-  apiPaso: ApiPaso = 'key';
-  apiKey = this.fdService.getApiKey() ?? '';
+  apiPaso: ApiPaso = 'ligas';
   competiciones: FdCompeticion[] = [];
   competicionSeleccionada: FdCompeticion | null = null;
   equiposApi: FdEquipo[] = [];
   equipoApiSeleccionado: FdEquipo | null = null;
+
+  // Advanced URL configuration (collapsed by default, developer/admin use)
+  mostrarAvanzado = false;
+  apiBaseInput = '';
+
+  /** Current effective base URL (environment default or localStorage override). */
+  get apiBaseActual(): string {
+    return this.fdService.getApiBase();
+  }
 
   // Manual flow
   equipoManual: EquipoManual = this.nuevoEquipoManual();
 
   ngOnInit(): void {
     this.cargarEquipos();
+  }
+
+  ngOnDestroy(): void {
+    this.cancelApi$.next();
+    this.cancelApi$.complete();
   }
 
   cargarEquipos(): void {
@@ -98,6 +253,9 @@ export class LigaPageComponent implements OnInit {
   }
 
   abrirPanel(panel: Panel): void {
+    // Cancel any in-flight API request from a previous open.
+    this.cancelApi$.next();
+    this.guardando = false;
     this.error = null;
     if (this.panelAbierto === panel) {
       this.panelAbierto = 'ninguno';
@@ -105,11 +263,15 @@ export class LigaPageComponent implements OnInit {
     }
     this.panelAbierto = panel;
     if (panel === 'api') {
-      this.apiPaso = 'key';
+      this.apiBaseInput = this.fdService.getApiBase();
+      this.mostrarAvanzado = false;
+      this.apiPaso = 'ligas';
       this.competiciones = [];
       this.competicionSeleccionada = null;
       this.equiposApi = [];
       this.equipoApiSeleccionado = null;
+      // Load competitions immediately — no key-entry step needed.
+      this.cargarCompeticiones();
     }
     if (panel === 'manual') {
       this.equipoManual = this.nuevoEquipoManual();
@@ -117,66 +279,165 @@ export class LigaPageComponent implements OnInit {
   }
 
   cerrarPanel(): void {
+    this.cancelApi$.next();    // abort any in-flight request
+    this.guardando = false;    // guarantee the spinner never gets stuck
     this.panelAbierto = 'ninguno';
+    this.mostrarAvanzado = false;
     this.error = null;
   }
 
+  // ── Advanced URL config ──────────────────────
+  /**
+   * Persist the user-supplied base URL (or clear it if empty).
+   * After saving, re-syncs `apiBaseInput` to the normalized stored value
+   * so the field reflects exactly what was committed.
+   */
+  guardarApiBase(): void {
+    this.fdService.setApiBase(this.apiBaseInput);
+    // Re-read so the input shows the normalized (slash-stripped) value.
+    this.apiBaseInput = this.fdService.getApiBase();
+    this.exito = 'URL base actualizada. Se aplicará en la próxima llamada a la API.';
+    setTimeout(() => (this.exito = null), 4000);
+  }
+
+  /** Remove the localStorage override and fall back to the environment default. */
+  resetearApiBase(): void {
+    this.fdService.resetApiBase();
+    this.apiBaseInput = this.fdService.getApiBase();
+  }
+
   // ── API flow ─────────────────────────────────
+  /** Load the list of competitions. Called automatically when the panel opens, and on retry. */
   cargarCompeticiones(): void {
-    if (!this.apiKey.trim()) {
-      this.error = 'Introduce una API key válida.';
-      return;
-    }
-    this.fdService.setApiKey(this.apiKey);
+    this.loadingMsg = 'Cargando ligas disponibles...';
     this.guardando = true;
     this.error = null;
-    this.fdService.listarCompeticiones().subscribe({
-      next: (comps) => {
-        this.competiciones = comps;
-        this.guardando = false;
-        this.apiPaso = 'ligas';
-      },
-      error: (err: Error) => {
-        this.error = err.message;
-        this.guardando = false;
-      },
-    });
+    this.competiciones = [];
+    this.fdService
+      .listarCompeticiones()
+      .pipe(
+        takeUntil(this.cancelApi$),
+        finalize(() => { this.guardando = false; }),
+      )
+      .subscribe({
+        next: (comps) => { this.competiciones = comps; },
+        error: (err: Error) => { this.error = err.message; },
+      });
   }
 
   seleccionarCompeticion(comp: FdCompeticion): void {
     this.competicionSeleccionada = comp;
+    this.loadingMsg = `Cargando equipos de ${comp.name}...`;
     this.guardando = true;
     this.error = null;
-    this.fdService.listarEquipos(comp.code).subscribe({
-      next: (equipos) => {
-        this.equiposApi = equipos;
-        this.equipoApiSeleccionado = null;
-        this.guardando = false;
-        this.apiPaso = 'equipos';
-      },
-      error: (err: Error) => {
-        this.error = err.message;
-        this.guardando = false;
-      },
-    });
+    this.fdService
+      .listarEquipos(comp.code)
+      .pipe(
+        takeUntil(this.cancelApi$),
+        finalize(() => { this.guardando = false; }),
+      )
+      .subscribe({
+        next: (equipos) => {
+          this.equiposApi = equipos;
+          this.equipoApiSeleccionado = null;
+          this.apiPaso = 'equipos';
+        },
+        error: (err: Error) => {
+          this.error = err.message;
+          // User stays on 'ligas' and can retry by clicking the competition again.
+        },
+      });
   }
 
   confirmarEquipoApi(): void {
     if (!this.equipoApiSeleccionado) return;
-    const fd = this.equipoApiSeleccionado;
+    const fd   = this.equipoApiSeleccionado;
+    const comp = this.competicionSeleccionada;
+    this.loadingMsg = 'Importando equipo, plantilla y partidos...';
     this.guardando = true;
     this.error = null;
+
     this.equipoService
       .crear({
-        nombre: fd.name,
-        categoria: this.competicionSeleccionada?.name,
-        temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
-        ciudad: fd.area?.name,
+        nombre:    fd.name,
+        categoria: comp?.name,
+        temporada: getCurrentSeason(),
+        ciudad:    fd.area?.name,
       })
+      .pipe(
+        switchMap((equipo) =>
+          forkJoin({
+            equipo: of(equipo),
+            // Squad, match and scorer calls are non-blocking: a failure here must
+            // NOT roll back the team that was already created.
+            plantilla: this.fdService.listarPlantillaEquipo(fd.id).pipe(
+              catchError(() => of([] as FdJugadorSquad[])),
+            ),
+            partidos: this.fdService
+              .listarPartidosEquipo(fd.id, 10, comp?.id)
+              .pipe(
+                catchError(() => of([] as FdMatch[])),
+              ),
+            goleadores: comp
+              ? this.fdService
+                  .listarGoleadores(comp.code, getCurrentSeasonYear())
+                  .pipe(catchError(() => of([] as FdGoleador[])))
+              : of([] as FdGoleador[]),
+          }),
+        ),
+        takeUntil(this.cancelApi$),
+        finalize(() => { this.guardando = false; }),
+      )
       .subscribe({
-        next: (equipo) => {
+        next: ({ equipo, plantilla, partidos, goleadores }) => {
+          // ── Build scorer lookup: playerId → { goles, asistencias, partidosTitular } ──
+          const scorerMap = new Map<number, { goles: number; asistencias: number; partidosTitular: number }>();
+          for (const g of goleadores) {
+            scorerMap.set(g.player.id, {
+              goles:           g.goals,
+              asistencias:     g.assists        ?? 0,
+              partidosTitular: g.playedMatches,
+            });
+          }
+
+          // ── Build match stats: playerId → { amarillas, rojas, minutos } ──
+          // Aggregated from bookings[], lineup[] and substitutions[] of each match.
+          const matchStatsMap = agregarStatsDePartidos(partidos, fd.id);
+
+          // ── Persist squad ────────────────────────────────────────────
+          if (plantilla.length > 0) {
+            const payloads: CrearJugadorPayload[] = plantilla.map((j) => {
+              const scorer = scorerMap.get(j.id);
+              const match  = matchStatsMap.get(j.id);
+              return {
+                nombre:   j.name,
+                posicion: mapFdPosicion(j.position),
+                dorsal:   j.shirtNumber ?? undefined,
+                edad:     j.dateOfBirth
+                  ? new Date().getFullYear() -
+                    new Date(j.dateOfBirth).getFullYear()
+                  : undefined,
+                goles:             scorer?.goles           ?? 0,
+                asistencias:       scorer?.asistencias     ?? 0,
+                partidosTitular:   scorer?.partidosTitular ?? 0,
+                tarjetasAmarillas: match?.amarillas         ?? 0,
+                tarjetasRojas:     match?.rojas             ?? 0,
+                minutos:           match?.minutos           ?? 0,
+              };
+            });
+            this.jugadorService.importarPlantilla(equipo.id, payloads);
+          }
+
+          // ── Persist matches (most-recent-first from the API) ─────────
+          if (partidos.length > 0) {
+            this.partidoService.guardar(
+              equipo.id,
+              partidos.map((m) => mapFdMatchToPartido(m, fd.id)),
+            );
+          }
+
+          // ── Activate & finish ────────────────────────────────────────
           this.equipoActivo.setEquipo(equipo.id);
-          this.guardando = false;
           this.panelAbierto = 'ninguno';
           this.cargarEquipos();
           this.exito = `${equipo.nombre} importado y activado.`;
@@ -184,7 +445,6 @@ export class LigaPageComponent implements OnInit {
         },
         error: (err: Error) => {
           this.error = err.message;
-          this.guardando = false;
         },
       });
   }
@@ -209,9 +469,11 @@ export class LigaPageComponent implements OnInit {
           this.equipoActivo.setEquipo(equipo.id);
           this.guardando = false;
           this.panelAbierto = 'ninguno';
-          this.cargarEquipos();
-          this.exito = `${equipo.nombre} creado y activado.`;
-          setTimeout(() => (this.exito = null), 3500);
+          // Navigate to plantilla so the user can add players immediately.
+          // The ?nuevo=true flag auto-opens the add-player form.
+          this.router.navigate(['/plantilla'], {
+            queryParams: { equipoId: equipo.id, nuevo: 'true' },
+          });
         },
         error: (err: Error) => {
           this.error = err.message;
@@ -221,12 +483,8 @@ export class LigaPageComponent implements OnInit {
   }
 
   volverApiPaso(): void {
-    const prev: Record<ApiPaso, ApiPaso> = {
-      key: 'key',
-      ligas: 'key',
-      equipos: 'ligas',
-    };
-    this.apiPaso = prev[this.apiPaso];
+    // Only called from 'equipos' → go back to the league selection.
+    this.apiPaso = 'ligas';
     this.error = null;
   }
 
@@ -238,7 +496,7 @@ export class LigaPageComponent implements OnInit {
     return {
       nombre: '',
       categoria: '',
-      temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+      temporada: getCurrentSeason(),
       ciudad: '',
     };
   }

@@ -179,7 +179,6 @@
               placeholder="Ej: Regional Preferente"
             />
           </div>
-
           <div class="field">
             <label for="temporada-input">Temporada</label>
             <input
@@ -211,6 +210,118 @@
             {{ cargando ? 'Creando...' : 'Crear equipo' }}
           </button>
         </div>
+      </div>
+    }
+
+    <!-- PASO: Añadir jugadores (tras crear manualmente) -->
+    @if (paso === 'jugadores') {
+      <div class="step fade-in">
+
+        <div class="equipo-creado-badge">
+          <span class="badge-check">✓</span>
+          <span>Equipo <strong>{{ equipoRecienCreadoNombre }}</strong> creado</span>
+        </div>
+
+        <h2 class="step-title">Añade tu plantilla</h2>
+        <p class="step-sub">
+          Incorpora los jugadores de tu equipo. Podrás editar sus estadísticas en la sección Plantilla.
+        </p>
+
+        <!-- Formulario rápido -->
+        <div class="jugador-form">
+          <div class="fields-row">
+            <div class="field">
+              <label for="jug-nombre">Nombre *</label>
+              <input
+                id="jug-nombre"
+                type="text"
+                [(ngModel)]="nuevoJugador.nombre"
+                placeholder="Ej: Carlos García"
+                (keyup.enter)="agregarJugador()"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label for="jug-posicion">Posición *</label>
+              <select id="jug-posicion" [(ngModel)]="nuevoJugador.posicion">
+                <option value="" disabled>Selecciona...</option>
+                @for (p of posiciones; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="fields-row">
+            <div class="field">
+              <label for="jug-dorsal">Dorsal</label>
+              <input
+                id="jug-dorsal"
+                type="number"
+                [(ngModel)]="nuevoJugador.dorsal"
+                placeholder="Ej: 10"
+                min="1"
+                max="99"
+              />
+            </div>
+            <div class="field">
+              <label for="jug-apellidos">Apellidos</label>
+              <input
+                id="jug-apellidos"
+                type="text"
+                [(ngModel)]="nuevoJugador.apellidos"
+                placeholder="Ej: López Pérez"
+                (keyup.enter)="agregarJugador()"
+              />
+            </div>
+          </div>
+
+          <div class="btn-row btn-row-left">
+            <button
+              class="btn-primary btn-sm"
+              (click)="agregarJugador()"
+              [disabled]="!nuevoJugador.nombre.trim() || !nuevoJugador.posicion || guardandoJugador"
+            >
+              {{ guardandoJugador ? 'Añadiendo...' : '+ Añadir jugador' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de jugadores añadidos -->
+        @if (jugadoresAgregados.length > 0) {
+          <div class="jugadores-lista">
+            <p class="jugadores-lista-count">
+              <span class="count-num">{{ jugadoresAgregados.length }}</span>
+              jugador{{ jugadoresAgregados.length !== 1 ? 'es' : '' }} en la plantilla
+            </p>
+            @for (j of jugadoresAgregados; track j.jugadorId) {
+              <div class="jugador-chip fade-in">
+                <span class="jchip-dorsal">{{ j.dorsal ?? '—' }}</span>
+                <div class="jchip-info">
+                  <span class="jchip-nombre">{{ j.nombre }} {{ j.apellidos }}</span>
+                  <span class="jchip-pos">{{ j.posicion }}</span>
+                </div>
+                <button
+                  class="jchip-delete"
+                  (click)="quitarJugador(j.jugadorId)"
+                  title="Quitar jugador"
+                >✕</button>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Acciones finales -->
+        <div class="btn-row setup-final-row">
+          <button class="btn-outline" (click)="saltarJugadores()">
+            Añadir más tarde
+          </button>
+          <button class="btn-primary" (click)="verPlantilla()">
+            @if (jugadoresAgregados.length > 0) { Ver plantilla → }
+            @else { Ir al dashboard → }
+          </button>
+        </div>
+
       </div>
     }
 

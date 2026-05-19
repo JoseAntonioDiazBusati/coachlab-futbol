@@ -16,9 +16,10 @@ export class DashboardHeaderComponent {
   private readonly router = inject(Router);
 
   navItems = [
-    { label: 'Dashboard', path: '/dashboard' },
-    { label: 'Ligas', path: '/ligas' },
-    { label: 'Plantilla', path: '/plantilla' },
+    { label: 'Dashboard',  path: '/dashboard' },
+    { label: 'Ligas',      path: '/ligas' },
+    { label: 'Plantilla',  path: '/plantilla' },
+    { label: 'Prepartido', path: '/prepartido' },
   ];
 
   logout() {

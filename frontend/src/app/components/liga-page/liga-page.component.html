@@ -48,52 +48,79 @@
   <!-- ── Panel: Importar API ────────────────── -->
   @if (panelAbierto === 'api') {
     <div class="panel fade-in">
+
+      <!-- Header with gear icon for advanced URL config -->
       <div class="panel-header">
         <h3 class="panel-title">Importar desde football-data.org</h3>
-        <button class="btn-close" (click)="cerrarPanel()">&#10005;</button>
+        <div class="panel-header-end">
+          <button
+            class="btn-icon"
+            (click)="mostrarAvanzado = !mostrarAvanzado"
+            [class.active]="mostrarAvanzado"
+            title="Configuración avanzada de URL"
+          >⚙</button>
+          <button class="btn-close" (click)="cerrarPanel()">&#10005;</button>
+        </div>
       </div>
 
+      <!-- ── Configuración avanzada (URL base) ──── -->
+      @if (mostrarAvanzado) {
+        <div class="advanced-section fade-in">
+          <div class="field">
+            <label for="liga-api-base">URL base · football-data.org</label>
+            <input
+              id="liga-api-base"
+              type="text"
+              [(ngModel)]="apiBaseInput"
+              [placeholder]="apiBaseActual"
+              autocomplete="off"
+            />
+            <span class="field-hint">
+              Valor activo: <code>{{ apiBaseActual }}</code>.
+              En desarrollo usa <code>/fd-api/v4</code> (proxy de Angular).
+              En producción usa la URL directa o la de tu proxy inverso.
+              Deja el campo vacío y guarda para restaurar el valor del entorno.
+            </span>
+          </div>
+          <div class="advanced-actions">
+            <button class="btn-text-sm" (click)="resetearApiBase()">↩ Restaurar defecto</button>
+            <button class="btn-outline" (click)="guardarApiBase()">Guardar URL</button>
+          </div>
+        </div>
+      }
+
+      <!-- ── Contenido principal ────────────────── -->
       @if (guardando) {
-        <p class="loading-msg">Cargando...</p>
-      } @else if (apiPaso === 'key') {
-        <div class="field">
-          <label for="liga-api-key">API Key</label>
-          <input
-            id="liga-api-key"
-            type="text"
-            [(ngModel)]="apiKey"
-            placeholder="Introduce tu API key de football-data.org"
-            (keyup.enter)="cargarCompeticiones()"
-            autocomplete="off"
-          />
-          <span class="field-hint">
-            Obtén tu API key gratuita en <strong>football-data.org</strong>
-          </span>
-        </div>
-        <div class="panel-actions">
-          <button class="btn-outline" (click)="cerrarPanel()">Cancelar</button>
-          <button class="btn-primary" (click)="cargarCompeticiones()" [disabled]="!apiKey.trim()">
-            Cargar ligas
-          </button>
-        </div>
+        <p class="loading-msg">{{ loadingMsg }}</p>
 
       } @else if (apiPaso === 'ligas') {
-        <div class="step-nav">
-          <button class="btn-back-sm" (click)="volverApiPaso()">← Volver</button>
-          <span class="step-label">Selecciona una liga · {{ competiciones.length }} disponibles</span>
-        </div>
-        <div class="competicion-grid">
-          @for (comp of competiciones; track comp.code) {
-            <button
-              class="competicion-card"
-              [class.selected]="competicionSeleccionada?.code === comp.code"
-              (click)="seleccionarCompeticion(comp)"
-            >
-              <div class="comp-name">{{ comp.name }}</div>
-              <div class="comp-area">{{ comp.area?.name }}</div>
-            </button>
-          }
-        </div>
+
+        @if (competiciones.length === 0) {
+          <!-- Error / empty state with retry -->
+          <div class="panel-empty-state">
+            <p class="panel-empty-msg">
+              No se pudieron cargar las ligas.<br>
+              Comprueba la conexión, la API key y la URL base (⚙).
+            </p>
+            <button class="btn-outline" (click)="cargarCompeticiones()">Reintentar</button>
+          </div>
+        } @else {
+          <div class="step-nav">
+            <span class="step-label">Selecciona una liga · {{ competiciones.length }} disponibles</span>
+          </div>
+          <div class="competicion-grid">
+            @for (comp of competiciones; track comp.code) {
+              <button
+                class="competicion-card"
+                [class.selected]="competicionSeleccionada?.code === comp.code"
+                (click)="seleccionarCompeticion(comp)"
+              >
+                <div class="comp-name">{{ comp.name }}</div>
+                <div class="comp-area">{{ comp.area.name }}</div>
+              </button>
+            }
+          </div>
+        }
 
       } @else if (apiPaso === 'equipos') {
         <div class="step-nav">
@@ -125,6 +152,7 @@
           </button>
         </div>
       }
+
     </div>
   }
 

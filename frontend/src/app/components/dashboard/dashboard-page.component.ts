@@ -113,6 +113,20 @@ export class DashboardPageComponent implements OnInit {
     if (equipo) this.seleccionarEquipo(equipo);
   }
 
+  /**
+   * Retry the last failed load without refreshing the page.
+   * If a team is already selected, only re-fetches the summary.
+   * Otherwise re-loads the full team list.
+   */
+  reintentar(): void {
+    this.error = null;
+    if (this.equipoSeleccionado) {
+      this.cargarResumen();
+    } else {
+      this.cargarEquipos();
+    }
+  }
+
   cargarResumen(): void {
     if (!this.equipoSeleccionado) return;
     this.cargando = true;
@@ -220,6 +234,18 @@ export class DashboardPageComponent implements OnInit {
   }
 
   private generarUltimosPartidos(r: ResumenTemporada): MatchCardData[] {
+    // ── Real imported data — show full detail ────────────────────────────────
+    if (r.partidos && r.partidos.length > 0) {
+      return r.partidos.slice(0, 5).map((p) => ({
+        opponent: p.rival,
+        date:     this.formatFecha(p.fecha),
+        venue:    p.esLocal ? 'Local' : 'Visitante',
+        score:    `${p.golesNuestros}–${p.golesRivales}`,
+        result:   p.resultado === 'VICTORIA' ? 'V' : p.resultado === 'EMPATE' ? 'E' : 'D',
+      }));
+    }
+
+    // ── Fallback: synthetic racha for manually-created teams ─────────────────
     if (!r.rachaReciente || r.rachaReciente.length === 0) {
       return [];
     }
@@ -235,5 +261,18 @@ export class DashboardPageComponent implements OnInit {
       score: '—',
       result: resultMap[resultado] ?? 'E',
     }));
+  }
+
+  /** "2024-03-15" → "15 mar 2024" */
+  private formatFecha(isoDate: string): string {
+    try {
+      return new Date(isoDate).toLocaleDateString('es-ES', {
+        day:   '2-digit',
+        month: 'short',
+        year:  'numeric',
+      });
+    } catch {
+      return isoDate;
+    }
   }
 }

@@ -131,6 +131,27 @@
   margin-bottom: $sp-2xl;
 }
 
+.panel-header-end {
+  display: flex;
+  align-items: center;
+  gap: $sp-xs;
+}
+
+// Gear icon button in panel header (admin/developer URL config)
+.btn-icon {
+  background: none;
+  border: none;
+  color: $text-quaternary;
+  font-size: $fs-xl;
+  cursor: pointer;
+  padding: $sp-xs $sp-sm;
+  border-radius: $border-radius-sm;
+  transition: color $transition-fast;
+
+  &:hover { color: $text-tertiary; }
+  &.active { color: $primary; }
+}
+
 .panel-title {
   font-family: $font-outfit;
   font-size: $fs-4xl;
@@ -231,6 +252,53 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: $sp-xl;
+}
+
+.btn-text-sm {
+  background: none;
+  border: none;
+  color: $text-tertiary;
+  font-size: $fs-md;
+  font-family: $font-inter;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color $transition-fast;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover { color: $text-primary; }
+}
+
+// ── Advanced URL config (⚙ in panel header) ──
+.advanced-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-lg;
+  padding: $sp-xl;
+  margin-bottom: $sp-2xl;
+}
+
+.advanced-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-md;
+  margin-top: $sp-md;
+}
+
+// ── Panel empty / error state ─────────────────
+.panel-empty-state {
+  text-align: center;
+  padding: $sp-3xl $sp-xl;
+
+  .panel-empty-msg {
+    color: $text-tertiary;
+    font-size: $fs-xl;
+    margin-bottom: $sp-xl;
+    line-height: 1.5;
+  }
 }
 
 // ── Competitions ──────────────────────────────
