@@ -228,18 +228,20 @@ describe('FootballDataService', () => {
     expect(errorMsg.toLowerCase()).toContain('proxy');   // suggest a reverse proxy as fix
   });
 
-  it('listarCompeticiones no-key message includes actionable guidance', () => {
+  it('listarCompeticiones no-key message guides developer to configure fdApiKey', () => {
     let errorMsg = '';
     service.listarCompeticiones().subscribe({ error: (e: Error) => (errorMsg = e.message) });
-    // Should tell the user what to do, not just state the problem
+    // Key is now embedded in environment; message should point developer to the right file.
     expect(errorMsg.toLowerCase()).toContain('configura');
+    expect(errorMsg).toContain('fdApiKey');
   });
 
-  it('listarEquipos no-key message signals the key disappeared mid-session', () => {
+  it('listarEquipos no-key message guides developer to check environment config', () => {
     let errorMsg = '';
     service.listarEquipos('PL').subscribe({ error: (e: Error) => (errorMsg = e.message) });
-    // Distinct from "no key at all" — signals that the key was lost after the flow started
+    // Distinct from "no key at all" — signals the key is not available at request time.
     expect(errorMsg.toLowerCase()).toContain('disponible');
+    expect(errorMsg).toContain('fdApiKey');
   });
 
   it('uses custom apiBase override when making requests', () => {

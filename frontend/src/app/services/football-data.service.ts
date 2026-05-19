@@ -73,11 +73,28 @@ export class FootballDataService {
   // ── API key ─────────────────────────────────────
   tieneApiKey(): boolean { return !!this.getApiKey(); }
 
+  /**
+   * Returns the effective API key.
+   *
+   * Priority:
+   *  1. localStorage `coachlab_football_api_key`  — developer override (testing, hot-swap)
+   *  2. environment.fdApiKey                      — code-configured key (normal usage)
+   *  3. null                                      — not configured
+   *
+   * Regular users never need to set this; the key is embedded in the build
+   * via environment.ts / environment.prod.ts.
+   */
   getApiKey(): string | null {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(this.STORAGE_API_KEY);
+    // Developer override: allows swapping the key at runtime without recompiling.
+    if (typeof window !== 'undefined') {
+      const override = window.localStorage.getItem(this.STORAGE_API_KEY)?.trim();
+      if (override) return override;
+    }
+    const envKey = environment.fdApiKey?.trim();
+    return envKey || null;
   }
 
+  /** Store a runtime key override in localStorage (developer / testing use only). */
   setApiKey(key: string): void {
     if (typeof window !== 'undefined')
       window.localStorage.setItem(this.STORAGE_API_KEY, key.trim());
@@ -91,7 +108,9 @@ export class FootballDataService {
   listarCompeticiones(): Observable<FdCompeticion[]> {
     const key = this.getApiKey();
     if (!key) return throwError(() => new Error(
-      'No hay API key configurada. Introduce tu clave de football-data.org para continuar.',
+      'No hay API key configurada. ' +
+      'Define fdApiKey en src/environments/environment.ts (dev) ' +
+      'o environment.prod.ts (producción).',
     ));
 
     return this.http
@@ -111,7 +130,8 @@ export class FootballDataService {
   listarEquipos(codigoCompeticion: string): Observable<FdEquipo[]> {
     const key = this.getApiKey();
     if (!key) return throwError(() => new Error(
-      'La API key ya no está disponible. Vuelve al paso anterior e introdúcela de nuevo.',
+      'La API key no está disponible. ' +
+      'Verifica que fdApiKey está configurada en environment.ts.',
     ));
 
     return this.http
