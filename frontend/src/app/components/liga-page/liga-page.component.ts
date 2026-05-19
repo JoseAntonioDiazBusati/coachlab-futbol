@@ -1,8 +1,8 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, finalize, switchMap, takeUntil } from 'rxjs/operators';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
@@ -76,7 +76,7 @@ interface EquipoManual {
   templateUrl: './liga-page.component.html',
   styleUrl: './liga-page.component.scss',
 })
-export class LigaPageComponent implements OnInit {
+export class LigaPageComponent implements OnInit, OnDestroy {
   private readonly equipoService  = inject(EquipoService);
   private readonly equipoActivo   = inject(EquipoActivoService);
   private readonly fdService      = inject(FootballDataService);
@@ -84,10 +84,18 @@ export class LigaPageComponent implements OnInit {
   private readonly partidoService = inject(PartidoService);
   private readonly router         = inject(Router);
 
+  /**
+   * Emitting here cancels any in-flight football-data.org request.
+   * Used by `abrirPanel()` (toggle close) and `cerrarPanel()`.
+   */
+  private readonly cancelApi$ = new Subject<void>();
+
   equipos: Equipo[] = [];
   equipoActivoActual: Equipo | null = null;
   cargando = false;
   guardando = false;
+  /** Context-aware message shown in the panel loading spinner. */
+  loadingMsg = 'Cargando...';
   error: string | null = null;
   exito: string | null = null;
 
@@ -114,6 +122,11 @@ export class LigaPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarEquipos();
+  }
+
+  ngOnDestroy(): void {
+    this.cancelApi$.next();
+    this.cancelApi$.complete();
   }
 
   cargarEquipos(): void {
@@ -157,6 +170,9 @@ export class LigaPageComponent implements OnInit {
   }
 
   abrirPanel(panel: Panel): void {
+    // Cancel any in-flight API request from a previous open.
+    this.cancelApi$.next();
+    this.guardando = false;
     this.error = null;
     if (this.panelAbierto === panel) {
       this.panelAbierto = 'ninguno';
@@ -180,6 +196,8 @@ export class LigaPageComponent implements OnInit {
   }
 
   cerrarPanel(): void {
+    this.cancelApi$.next();    // abort any in-flight request
+    this.guardando = false;    // guarantee the spinner never gets stuck
     this.panelAbierto = 'ninguno';
     this.mostrarAvanzado = false;
     this.error = null;
@@ -208,45 +226,51 @@ export class LigaPageComponent implements OnInit {
   // ── API flow ─────────────────────────────────
   /** Load the list of competitions. Called automatically when the panel opens, and on retry. */
   cargarCompeticiones(): void {
+    this.loadingMsg = 'Cargando ligas disponibles...';
     this.guardando = true;
     this.error = null;
     this.competiciones = [];
-    this.fdService.listarCompeticiones().subscribe({
-      next: (comps) => {
-        this.competiciones = comps;
-        this.guardando = false;
-      },
-      error: (err: Error) => {
-        this.error = err.message;
-        this.guardando = false;
-      },
-    });
+    this.fdService
+      .listarCompeticiones()
+      .pipe(
+        takeUntil(this.cancelApi$),
+        finalize(() => { this.guardando = false; }),
+      )
+      .subscribe({
+        next: (comps) => { this.competiciones = comps; },
+        error: (err: Error) => { this.error = err.message; },
+      });
   }
 
   seleccionarCompeticion(comp: FdCompeticion): void {
     this.competicionSeleccionada = comp;
+    this.loadingMsg = `Cargando equipos de ${comp.name}...`;
     this.guardando = true;
     this.error = null;
-    this.fdService.listarEquipos(comp.code).subscribe({
-      next: (equipos) => {
-        this.equiposApi = equipos;
-        this.equipoApiSeleccionado = null;
-        this.guardando = false;
-        this.apiPaso = 'equipos';
-      },
-      error: (err: Error) => {
-        this.error = err.message;
-        this.guardando = false;
-        // The error banner describes the problem; the user stays on 'ligas'
-        // and can retry or adjust the URL via the advanced settings (⚙).
-      },
-    });
+    this.fdService
+      .listarEquipos(comp.code)
+      .pipe(
+        takeUntil(this.cancelApi$),
+        finalize(() => { this.guardando = false; }),
+      )
+      .subscribe({
+        next: (equipos) => {
+          this.equiposApi = equipos;
+          this.equipoApiSeleccionado = null;
+          this.apiPaso = 'equipos';
+        },
+        error: (err: Error) => {
+          this.error = err.message;
+          // User stays on 'ligas' and can retry by clicking the competition again.
+        },
+      });
   }
 
   confirmarEquipoApi(): void {
     if (!this.equipoApiSeleccionado) return;
     const fd   = this.equipoApiSeleccionado;
     const comp = this.competicionSeleccionada;
+    this.loadingMsg = 'Importando equipo, plantilla y partidos...';
     this.guardando = true;
     this.error = null;
 
@@ -271,6 +295,8 @@ export class LigaPageComponent implements OnInit {
             ),
           }),
         ),
+        takeUntil(this.cancelApi$),
+        finalize(() => { this.guardando = false; }),
       )
       .subscribe({
         next: ({ equipo, plantilla, partidos }) => {
@@ -300,7 +326,6 @@ export class LigaPageComponent implements OnInit {
 
           // ── Activate & finish ────────────────────────────────────────
           this.equipoActivo.setEquipo(equipo.id);
-          this.guardando = false;
           this.panelAbierto = 'ninguno';
           this.cargarEquipos();
           this.exito = `${equipo.nombre} importado y activado.`;
@@ -308,7 +333,6 @@ export class LigaPageComponent implements OnInit {
         },
         error: (err: Error) => {
           this.error = err.message;
-          this.guardando = false;
         },
       });
   }

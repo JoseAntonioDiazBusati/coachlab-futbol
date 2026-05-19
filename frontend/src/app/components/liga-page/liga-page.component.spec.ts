@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { LigaPageComponent } from './liga-page.component';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { EquipoService, Equipo } from '../../services/equipo.service';
@@ -512,6 +512,101 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       expect(guardarSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── loadingMsg ────────────────────────────────────────────────────────────
+  describe('loadingMsg', () => {
+    it('cargarCompeticiones sets a "ligas" loading message', () => {
+      stubEquipos();
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockReturnValue(of([]));
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+
+      comp.cargarCompeticiones();
+
+      expect(comp.loadingMsg.toLowerCase()).toContain('ligas');
+    });
+
+    it('seleccionarCompeticion sets a message that includes the competition name', () => {
+      stubEquipos();
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarEquipos')
+        .mockReturnValue(of([]));
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+
+      comp.seleccionarCompeticion(COMP_MOCK);
+
+      expect(comp.loadingMsg).toContain(COMP_MOCK.name);
+    });
+
+    it('confirmarEquipoApi sets an "importando" loading message', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar();
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(comp.loadingMsg.toLowerCase()).toContain('importando');
+    });
+  });
+
+  // ── request cancellation ───────────────────────────────────────────────────
+  describe('request cancellation', () => {
+    it('cerrarPanel() sets guardando to false even when a request is in-flight', () => {
+      stubEquipos();
+      const pending$ = new Subject<typeof COMP_MOCK[]>();
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockReturnValue(pending$.asObservable());
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.abrirPanel('api');
+      expect(comp.guardando).toBe(true); // still in-flight
+
+      comp.cerrarPanel();
+      expect(comp.guardando).toBe(false);   // cleared immediately
+      expect(comp.panelAbierto).toBe('ninguno');
+
+      // Late server response should not update component state
+      pending$.next([COMP_MOCK]);
+      expect(comp.competiciones.length).toBe(0);
+    });
+
+    it('toggling the same panel cancels the in-flight request and clears guardando', () => {
+      stubEquipos();
+      const pending$ = new Subject<typeof COMP_MOCK[]>();
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockReturnValue(pending$.asObservable());
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.abrirPanel('api');         // open → starts loading
+      expect(comp.guardando).toBe(true);
+
+      comp.abrirPanel('api');         // toggle close
+      expect(comp.panelAbierto).toBe('ninguno');
+      expect(comp.guardando).toBe(false);
+
+      // Stale response after toggle should be ignored
+      pending$.next([COMP_MOCK]);
+      expect(comp.competiciones.length).toBe(0);
+    });
+
+    it('re-opening panel after close starts a fresh request (previous cancellation does not block new sub)', () => {
+      stubEquipos();
+      let callCount = 0;
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockImplementation(() => { callCount++; return of([COMP_MOCK]); });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.abrirPanel('api');   // 1st open
+      comp.abrirPanel('api');   // toggle close
+      comp.abrirPanel('api');   // 2nd open
+
+      expect(comp.panelAbierto).toBe('api');
+      expect(callCount).toBe(2);         // called on 1st and 2nd open
+      expect(comp.competiciones.length).toBe(1); // populated from 2nd request
     });
   });
 

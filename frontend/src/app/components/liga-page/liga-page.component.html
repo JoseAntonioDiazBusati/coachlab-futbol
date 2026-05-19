@@ -91,7 +91,7 @@
 
       <!-- ── Contenido principal ────────────────── -->
       @if (guardando) {
-        <p class="loading-msg">Cargando ligas...</p>
+        <p class="loading-msg">{{ loadingMsg }}</p>
 
       } @else if (apiPaso === 'ligas') {
 
