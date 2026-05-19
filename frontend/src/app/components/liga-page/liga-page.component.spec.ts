@@ -277,6 +277,95 @@ describe('LigaPageComponent', () => {
     });
   });
 
+  // ── advanced URL config ────────────────────────────────────────────────────
+  describe('advanced URL config', () => {
+    it('apiBaseActual returns the service base URL', () => {
+      stubEquipos();
+      const fdSvc = TestBed.inject(FootballDataService);
+      fdSvc.setApiBase('https://my-proxy.example.com/v4');
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      expect(comp.apiBaseActual).toBe('https://my-proxy.example.com/v4');
+    });
+
+    it('abrirPanel("api") loads apiBaseInput from service', () => {
+      stubEquipos();
+      TestBed.inject(FootballDataService).setApiBase('https://custom.example.com/v4');
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.apiBaseInput = 'stale-value';
+
+      comp.abrirPanel('api');
+
+      expect(comp.apiBaseInput).toBe('https://custom.example.com/v4');
+    });
+
+    it('abrirPanel("api") resets mostrarAvanzado to false', () => {
+      stubEquipos();
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.mostrarAvanzado = true;
+
+      comp.abrirPanel('api');
+
+      expect(comp.mostrarAvanzado).toBe(false);
+    });
+
+    it('cerrarPanel() resets mostrarAvanzado to false', () => {
+      stubEquipos();
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.mostrarAvanzado = true;
+
+      comp.cerrarPanel();
+
+      expect(comp.mostrarAvanzado).toBe(false);
+    });
+
+    it('guardarApiBase() persists the input value via fdService', () => {
+      stubEquipos();
+      const fdSvc = TestBed.inject(FootballDataService);
+      const spy = vi.spyOn(fdSvc, 'setApiBase');
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.apiBaseInput = 'https://prod-proxy.example.com/v4';
+
+      comp.guardarApiBase();
+
+      expect(spy).toHaveBeenCalledWith('https://prod-proxy.example.com/v4');
+    });
+
+    it('guardarApiBase() re-syncs apiBaseInput to the normalized stored value', () => {
+      stubEquipos();
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.apiBaseInput = 'https://prod-proxy.example.com/v4/';  // trailing slash
+
+      comp.guardarApiBase();
+
+      // Service strips the slash; component must reflect the normalized value
+      expect(comp.apiBaseInput).toBe('https://prod-proxy.example.com/v4');
+    });
+
+    it('guardarApiBase() shows a success banner', () => {
+      stubEquipos();
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.apiBaseInput = 'https://example.com/v4';
+
+      comp.guardarApiBase();
+
+      expect(comp.exito).toBeTruthy();
+    });
+
+    it('resetearApiBase() restores the environment default and syncs apiBaseInput', () => {
+      stubEquipos();
+      const fdSvc = TestBed.inject(FootballDataService);
+      fdSvc.setApiBase('https://custom.example.com/v4');
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.apiBaseInput = 'https://custom.example.com/v4';
+
+      comp.resetearApiBase();
+
+      // localStorage override cleared → falls back to dev environment default
+      expect(comp.apiBaseInput).toBe('/fd-api/v4');
+      expect(fdSvc.getApiBase()).toBe('/fd-api/v4');
+    });
+  });
+
   // ── seleccionarCompeticion() — key lost mid-session ────────────────────────
   describe('seleccionarCompeticion() — key disappears mid-session', () => {
     it('resets apiPaso to "key" and clears apiKey when tieneApiKey() is false', () => {

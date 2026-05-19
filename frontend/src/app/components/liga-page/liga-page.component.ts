@@ -52,9 +52,18 @@ export class LigaPageComponent implements OnInit {
   /** Whether the user is in "change key" mode inside the saved-key view. */
   cambiarApiKey = false;
 
+  // Advanced URL configuration (collapsed by default)
+  mostrarAvanzado = false;
+  apiBaseInput = '';
+
   // ── API key helpers ──────────────────────────────
   get tieneApiKeyGuardada(): boolean {
     return this.fdService.tieneApiKey();
+  }
+
+  /** Current effective base URL (environment default or localStorage override). */
+  get apiBaseActual(): string {
+    return this.fdService.getApiBase();
   }
 
   /**
@@ -129,9 +138,11 @@ export class LigaPageComponent implements OnInit {
     }
     this.panelAbierto = panel;
     if (panel === 'api') {
-      // Always re-read from localStorage so in-memory value never goes stale.
+      // Always re-read from localStorage so in-memory values never go stale.
       this.apiKey = this.fdService.getApiKey() ?? '';
+      this.apiBaseInput = this.fdService.getApiBase();
       this.cambiarApiKey = false;
+      this.mostrarAvanzado = false;
       this.apiPaso = 'key';
       this.competiciones = [];
       this.competicionSeleccionada = null;
@@ -146,7 +157,28 @@ export class LigaPageComponent implements OnInit {
   cerrarPanel(): void {
     this.panelAbierto = 'ninguno';
     this.cambiarApiKey = false;
+    this.mostrarAvanzado = false;
     this.error = null;
+  }
+
+  // ── Advanced URL config ──────────────────────
+  /**
+   * Persist the user-supplied base URL (or clear it if empty).
+   * After saving, re-syncs `apiBaseInput` to the normalized stored value
+   * so the field reflects exactly what was committed.
+   */
+  guardarApiBase(): void {
+    this.fdService.setApiBase(this.apiBaseInput);
+    // Re-read so the input shows the normalized (slash-stripped) value.
+    this.apiBaseInput = this.fdService.getApiBase();
+    this.exito = 'URL base actualizada. Se aplicará en la próxima llamada a la API.';
+    setTimeout(() => (this.exito = null), 4000);
+  }
+
+  /** Remove the localStorage override and fall back to the environment default. */
+  resetearApiBase(): void {
+    this.fdService.resetApiBase();
+    this.apiBaseInput = this.fdService.getApiBase();
   }
 
   // ── API flow ─────────────────────────────────

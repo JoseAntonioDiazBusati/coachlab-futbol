@@ -311,6 +311,35 @@
   &:hover { color: $text-primary; }
 }
 
+// ── Advanced URL config ───────────────────────
+.advanced-toggle-row {
+  margin-top: $sp-xl;
+  padding-top: $sp-lg;
+  border-top: 1px solid $border-dark;
+}
+
+.toggle-caret {
+  font-size: $fs-xs;
+  margin-left: $sp-xs;
+  vertical-align: middle;
+}
+
+.advanced-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-lg;
+  padding: $sp-xl;
+  margin-top: $sp-md;
+}
+
+.advanced-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-md;
+  margin-top: $sp-md;
+}
+
 // ── Competitions ──────────────────────────────
 .competicion-grid {
   display: grid;
