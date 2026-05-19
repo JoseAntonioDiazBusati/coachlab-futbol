@@ -27,7 +27,10 @@
       <p class="dash-sub">{{ season }}</p>
 
       @if (error) {
-        <div class="status-banner error">{{ error }}</div>
+        <div class="status-banner error">
+          <span>{{ error }}</span>
+          <button class="btn-retry" (click)="reintentar()">Reintentar</button>
+        </div>
       }
 
       @if (cargando) {

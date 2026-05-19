@@ -113,6 +113,20 @@ export class DashboardPageComponent implements OnInit {
     if (equipo) this.seleccionarEquipo(equipo);
   }
 
+  /**
+   * Retry the last failed load without refreshing the page.
+   * If a team is already selected, only re-fetches the summary.
+   * Otherwise re-loads the full team list.
+   */
+  reintentar(): void {
+    this.error = null;
+    if (this.equipoSeleccionado) {
+      this.cargarResumen();
+    } else {
+      this.cargarEquipos();
+    }
+  }
+
   cargarResumen(): void {
     if (!this.equipoSeleccionado) return;
     this.cargando = true;

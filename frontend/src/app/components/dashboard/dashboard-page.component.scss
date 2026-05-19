@@ -230,6 +230,10 @@
 }
 
 .status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-md;
   padding: $sp-md $sp-lg;
   border-radius: $border-radius-lg;
   font-size: $fs-base;
@@ -246,6 +250,23 @@
     color: #22c55e;
     border: 1px solid rgba(34, 197, 94, 0.3);
   }
+}
+
+.btn-retry {
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-family: $font-inter;
+  font-size: $fs-sm;
+  padding: 3px 10px;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity $transition-fast;
+
+  &:hover { opacity: 1; }
 }
 
 .loading-text {

@@ -144,6 +144,7 @@ export class SetupPageComponent {
       .subscribe({
         next: (equipo) => {
           this.equipoActivo.setEquipo(equipo.id);
+          this.cargando = false;
           this.router.navigate(['/dashboard']);
         },
         error: (err: Error) => {
