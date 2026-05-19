@@ -15,7 +15,12 @@
   </div>
 
   @if (error) {
-    <div class="status-banner error">{{ error }}</div>
+    <div class="status-banner error">
+      <span>{{ error }}</span>
+      @if (!guardando) {
+        <button class="btn-retry" (click)="reintentar()">Reintentar</button>
+      }
+    </div>
   }
   @if (exito) {
     <div class="status-banner success">{{ exito }}</div>

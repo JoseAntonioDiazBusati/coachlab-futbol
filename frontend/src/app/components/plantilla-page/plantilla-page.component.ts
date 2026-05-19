@@ -91,6 +91,20 @@ export class PlantillaPageComponent implements OnInit {
     if (equipo) this.seleccionarEquipo(equipo);
   }
 
+  /**
+   * Retry the last failed load without refreshing the page.
+   * If a team is already selected, only reloads the squad.
+   * Otherwise reloads the full team list.
+   */
+  reintentar(): void {
+    this.error = null;
+    if (this.equipoSeleccionado) {
+      this.cargarPlantilla();
+    } else {
+      this.cargarEquipos();
+    }
+  }
+
   cargarPlantilla(): void {
     if (!this.equipoSeleccionado) return;
     this.cargando = true;

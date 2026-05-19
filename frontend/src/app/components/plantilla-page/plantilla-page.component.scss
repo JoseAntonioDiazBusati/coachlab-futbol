@@ -49,6 +49,10 @@
 
 // Status banners
 .status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-md;
   padding: $sp-md $sp-lg;
   border-radius: $border-radius-md;
   font-size: $fs-xl;
@@ -66,6 +70,23 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
     color: $primary;
   }
+}
+
+.btn-retry {
+  background: none;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-family: $font-inter;
+  font-size: $fs-sm;
+  padding: 3px 10px;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity $transition-fast;
+
+  &:hover { opacity: 1; }
 }
 
 // Equipo bar

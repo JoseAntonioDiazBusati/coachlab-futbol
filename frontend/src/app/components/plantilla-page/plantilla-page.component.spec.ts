@@ -263,4 +263,36 @@ describe('PlantillaPageComponent', () => {
       expect(comp.error).toContain('posición');
     });
   });
+
+  // ── reintentar() ─────────────────────────────────────────────────────────
+  describe('reintentar()', () => {
+    it('calls cargarPlantilla() when an equipo is already selected', () => {
+      stubEquipoService();
+      const plantillaSpy = vi.spyOn(TestBed.inject(JugadorService), 'listarPlantilla')
+        .mockReturnValue(of([]));
+
+      const comp = TestBed.createComponent(PlantillaPageComponent).componentInstance;
+      comp.equipoSeleccionado = EQUIPO_MOCK;
+      comp.error = 'Error previo';
+
+      comp.reintentar();
+
+      expect(comp.error).toBeNull();
+      expect(plantillaSpy).toHaveBeenCalled();
+    });
+
+    it('calls cargarEquipos() when no equipo is selected', () => {
+      const listarSpy = vi.spyOn(TestBed.inject(EquipoService), 'listar')
+        .mockReturnValue(of([]));
+
+      const comp = TestBed.createComponent(PlantillaPageComponent).componentInstance;
+      comp.equipoSeleccionado = null;
+      comp.error = 'Error previo';
+
+      comp.reintentar();
+
+      expect(comp.error).toBeNull();
+      expect(listarSpy).toHaveBeenCalled();
+    });
+  });
 });
