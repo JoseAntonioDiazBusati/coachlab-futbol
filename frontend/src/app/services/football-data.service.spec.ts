@@ -8,6 +8,7 @@ import {
   FootballDataService,
   FdCompeticion,
   FdEquipo,
+  FdGoleador,
   FdJugadorSquad,
   FdMatch,
 } from './football-data.service';
@@ -296,6 +297,7 @@ describe('FootballDataService', () => {
         id: 1,
         utcDate: '2024-03-15T15:00:00Z',
         status: 'FINISHED',
+        competition: { id: 2021, code: 'PL', name: 'Premier League' },
         homeTeam: { id: 57, name: 'Arsenal FC', shortName: 'Arsenal' },
         awayTeam: { id: 64, name: 'Liverpool FC', shortName: 'Liverpool' },
         score: { fullTime: { home: 2, away: 1 } },
@@ -331,6 +333,86 @@ describe('FootballDataService', () => {
     service.listarPartidosEquipo(57).subscribe((m) => (result = m));
     httpMock.expectOne((r) => r.url === '/fd-api/v4/teams/57/matches').flush({ matches: null });
     expect(result).toEqual([]);
+  });
+
+  it('listarPartidosEquipo adds competitions param when competicionId is provided', () => {
+    service.setApiKey(KEY);
+    service.listarPartidosEquipo(57, 10, 2014).subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/fd-api/v4/teams/57/matches');
+    expect(req.request.params.get('competitions')).toBe('2014');
+    req.flush({ matches: [] });
+  });
+
+  it('listarPartidosEquipo omits competitions param when competicionId is undefined', () => {
+    service.setApiKey(KEY);
+    service.listarPartidosEquipo(57, 10).subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/fd-api/v4/teams/57/matches');
+    expect(req.request.params.has('competitions')).toBe(false);
+    req.flush({ matches: [] });
+  });
+
+  // ── listarGoleadores ─────────────────────────────
+
+  it('listarGoleadores errors when no API key', () => {
+    let errorMsg = '';
+    service.listarGoleadores('PD').subscribe({ error: (e: Error) => (errorMsg = e.message) });
+    expect(errorMsg).toContain('disponible');
+  });
+
+  it('listarGoleadores calls correct URL with limit param', () => {
+    service.setApiKey(KEY);
+    const scorers: FdGoleador[] = [
+      {
+        player: { id: 1, name: 'Robert Lewandowski', position: 'Attacker' },
+        team: { id: 81, name: 'FC Barcelona' },
+        playedMatches: 10,
+        goals: 8,
+        assists: 2,
+        penalties: 1,
+      },
+    ];
+    let result: FdGoleador[] = [];
+    service.listarGoleadores('PD').subscribe((s) => (result = s));
+
+    const req = httpMock.expectOne((r) => r.url === '/fd-api/v4/competitions/PD/scorers');
+    expect(req.request.headers.get('X-Auth-Token')).toBe(KEY);
+    expect(req.request.params.get('limit')).toBe('50');
+    req.flush({ scorers });
+    expect(result.length).toBe(1);
+    expect(result[0].player.name).toBe('Robert Lewandowski');
+    expect(result[0].goals).toBe(8);
+  });
+
+  it('listarGoleadores includes season param when provided', () => {
+    service.setApiKey(KEY);
+    service.listarGoleadores('PD', 2025).subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/fd-api/v4/competitions/PD/scorers');
+    expect(req.request.params.get('season')).toBe('2025');
+    req.flush({ scorers: [] });
+  });
+
+  it('listarGoleadores omits season param when not provided', () => {
+    service.setApiKey(KEY);
+    service.listarGoleadores('PD').subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/fd-api/v4/competitions/PD/scorers');
+    expect(req.request.params.has('season')).toBe(false);
+    req.flush({ scorers: [] });
+  });
+
+  it('listarGoleadores handles null scorers response', () => {
+    service.setApiKey(KEY);
+    let result: FdGoleador[] | null = null;
+    service.listarGoleadores('PD').subscribe((s) => (result = s));
+    httpMock.expectOne((r) => r.url === '/fd-api/v4/competitions/PD/scorers').flush({ scorers: null });
+    expect(result).toEqual([]);
+  });
+
+  it('listarGoleadores accepts custom limit', () => {
+    service.setApiKey(KEY);
+    service.listarGoleadores('PD', undefined, 20).subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/fd-api/v4/competitions/PD/scorers');
+    expect(req.request.params.get('limit')).toBe('20');
+    req.flush({ scorers: [] });
   });
 
   it('uses custom apiBase override when making requests', () => {

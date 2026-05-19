@@ -40,11 +40,31 @@ export interface FdMatch {
   id: number;
   utcDate: string;   // ISO datetime: "2024-03-15T15:00:00Z"
   status: string;    // 'FINISHED' | 'SCHEDULED' | ...
+  competition: { id: number; code: string; name: string };
   homeTeam: { id: number; name: string; shortName?: string };
   awayTeam: { id: number; name: string; shortName?: string };
   score: {
     fullTime: { home: number | null; away: number | null };
   };
+}
+
+/**
+ * Entrada de la tabla de goleadores/asistentes.
+ * Devuelta por `GET /competitions/{code}/scorers`.
+ */
+export interface FdGoleador {
+  player: {
+    id: number;
+    name: string;
+    shirtNumber?: number | null;
+    position?: string | null;
+    dateOfBirth?: string;
+  };
+  team: { id: number; name: string };
+  playedMatches: number;
+  goals: number;
+  assists: number | null;
+  penalties: number;
 }
 
 /**
@@ -197,12 +217,17 @@ export class FootballDataService {
 
   /**
    * Devuelve los últimos partidos finalizados de un equipo.
-   * Endpoint: `GET /teams/{id}/matches?status=FINISHED&limit={limite}`
+   * Endpoint: `GET /teams/{id}/matches?status=FINISHED&limit={limite}[&competitions={competicionId}]`
+   *
+   * Cuando se pasa `competicionId`, la API solo devuelve partidos de esa competición,
+   * lo que evita mezclar LaLiga con Copa del Rey, Champions League, etc.
+   *
    * Los resultados vienen ordenados más-reciente-primero desde la API.
    */
   listarPartidosEquipo(
     fdTeamId: number,
     limite = 10,
+    competicionId?: number,
   ): Observable<FdMatch[]> {
     const key = this.getApiKey();
     if (!key) return throwError(() => new Error(
@@ -210,17 +235,64 @@ export class FootballDataService {
       'Verifica que fdApiKey está configurada en environment.ts.',
     ));
 
+    // Build params object; only add `competitions` when a filter is requested.
+    const params: Record<string, string> = {
+      status: 'FINISHED',
+      limit:  String(limite),
+    };
+    if (competicionId !== undefined) {
+      params['competitions'] = String(competicionId);
+    }
+
     return this.http
       .get<{ matches: FdMatch[] }>(
         `${this.apiBase}/teams/${fdTeamId}/matches`,
         {
           headers: { 'X-Auth-Token': key },
-          params: { status: 'FINISHED', limit: String(limite) },
+          params,
         },
       )
       .pipe(
         timeout(this.REQUEST_TIMEOUT),
         map((r) => r.matches ?? []),
+        catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
+      );
+  }
+
+  /**
+   * Devuelve la tabla de goleadores/asistentes de una competición.
+   * Endpoint: `GET /competitions/{code}/scorers?season={year}&limit={limite}`
+   *
+   * `season` debe ser el año de inicio de la temporada (e.g. 2025 para 2025/2026).
+   * La capa gratuita limita a las 12 competiciones incluidas en el plan.
+   */
+  listarGoleadores(
+    codigoCompeticion: string,
+    season?: number,
+    limite = 50,
+  ): Observable<FdGoleador[]> {
+    const key = this.getApiKey();
+    if (!key) return throwError(() => new Error(
+      'La API key no está disponible. ' +
+      'Verifica que fdApiKey está configurada en environment.ts.',
+    ));
+
+    const params: Record<string, string> = { limit: String(limite) };
+    if (season !== undefined) {
+      params['season'] = String(season);
+    }
+
+    return this.http
+      .get<{ scorers: FdGoleador[] }>(
+        `${this.apiBase}/competitions/${codigoCompeticion}/scorers`,
+        {
+          headers: { 'X-Auth-Token': key },
+          params,
+        },
+      )
+      .pipe(
+        timeout(this.REQUEST_TIMEOUT),
+        map((r) => r.scorers ?? []),
         catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
       );
   }
