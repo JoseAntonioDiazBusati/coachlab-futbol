@@ -24,6 +24,12 @@ function stubEquipos(): void {
   vi.spyOn(TestBed.inject(EquipoService), 'listar').mockReturnValue(of([]));
 }
 
+/** Stub listarCompeticiones to return a fixed list (defaults to empty). */
+function stubListarCompeticiones(comps: FdCompeticion[] = []): void {
+  vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+    .mockReturnValue(of(comps));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('LigaPageComponent', () => {
@@ -45,132 +51,65 @@ describe('LigaPageComponent', () => {
   // ── Smoke ──────────────────────────────────────────────────────────────────
   it('should create', () => {
     stubEquipos();
+    stubListarCompeticiones();
     expect(TestBed.createComponent(LigaPageComponent).componentInstance).toBeTruthy();
-  });
-
-  // ── tieneApiKeyGuardada ────────────────────────────────────────────────────
-  describe('tieneApiKeyGuardada', () => {
-    it('returns false when no key is stored', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      expect(comp.tieneApiKeyGuardada).toBe(false);
-    });
-
-    it('returns true after a key is saved', () => {
-      stubEquipos();
-      TestBed.inject(FootballDataService).setApiKey('my-key');
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      expect(comp.tieneApiKeyGuardada).toBe(true);
-    });
-
-    it('returns false after key is removed from localStorage mid-session', () => {
-      stubEquipos();
-      const fdSvc = TestBed.inject(FootballDataService);
-      fdSvc.setApiKey('my-key');
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      expect(comp.tieneApiKeyGuardada).toBe(true);
-
-      localStorage.clear();   // simulate external clear
-      expect(comp.tieneApiKeyGuardada).toBe(false);
-    });
-  });
-
-  // ── apiKeyMasked ───────────────────────────────────────────────────────────
-  describe('apiKeyMasked', () => {
-    it('returns empty string when no key is stored', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      expect(comp.apiKeyMasked).toBe('');
-    });
-
-    it('shows first 4 and last 4 characters of a long key', () => {
-      stubEquipos();
-      TestBed.inject(FootballDataService).setApiKey('abcdefgh12345678');
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      const m = comp.apiKeyMasked;
-      expect(m.startsWith('abcd')).toBe(true);
-      expect(m.endsWith('5678')).toBe(true);
-      expect(m).toContain('•');
-    });
-
-    it('fully masks a short key', () => {
-      stubEquipos();
-      TestBed.inject(FootballDataService).setApiKey('ab12');
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      expect(comp.apiKeyMasked).toBe('••••');
-    });
-
-    it('reflects current localStorage value reactively', () => {
-      stubEquipos();
-      const fdSvc = TestBed.inject(FootballDataService);
-      fdSvc.setApiKey('key-one-long-value');
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      const first = comp.apiKeyMasked;
-
-      fdSvc.setApiKey('key-two-different');
-      const second = comp.apiKeyMasked;
-
-      expect(first).not.toBe(second);
-    });
   });
 
   // ── abrirPanel('api') ──────────────────────────────────────────────────────
   describe('abrirPanel("api")', () => {
-    it('re-reads apiKey from localStorage on every open', () => {
+    it('immediately triggers listarCompeticiones on open', () => {
       stubEquipos();
-      TestBed.inject(FootballDataService).setApiKey('fresh-key');
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = 'stale-in-memory';   // simulate stale value
+      const spy = vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockReturnValue(of([COMP_MOCK]));
 
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.abrirPanel('api');
 
-      expect(comp.apiKey).toBe('fresh-key');
+      expect(spy).toHaveBeenCalledOnce();
     });
 
-    it('clears apiKey when localStorage has no key on open', () => {
+    it('populates competiciones and sets apiPaso to "ligas" on successful open', () => {
       stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = 'old-value';
+      stubListarCompeticiones([COMP_MOCK]);
 
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.abrirPanel('api');
 
-      expect(comp.apiKey).toBe('');
-    });
-
-    it('resets cambiarApiKey to false', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.cambiarApiKey = true;
-
-      comp.abrirPanel('api');
-
-      expect(comp.cambiarApiKey).toBe(false);
-    });
-
-    it('resets apiPaso to "key"', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiPaso = 'equipos';
-
-      comp.abrirPanel('api');
-
-      expect(comp.apiPaso).toBe('key');
+      expect(comp.competiciones.length).toBe(1);
+      expect(comp.apiPaso).toBe('ligas');
     });
 
     it('clears competiciones, equiposApi, and selection', () => {
       stubEquipos();
+      stubListarCompeticiones();
+
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.competiciones = [COMP_MOCK];
       comp.competicionSeleccionada = COMP_MOCK;
 
       comp.abrirPanel('api');
 
+      // After open, competiciones will be empty (stubbed to return [])
       expect(comp.competiciones.length).toBe(0);
       expect(comp.competicionSeleccionada).toBeNull();
     });
 
+    it('resets mostrarAvanzado to false', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.mostrarAvanzado = true;
+
+      comp.abrirPanel('api');
+
+      expect(comp.mostrarAvanzado).toBe(false);
+    });
+
     it('toggles panel closed when clicked a second time', () => {
       stubEquipos();
+      stubListarCompeticiones();
+
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.abrirPanel('api');
       expect(comp.panelAbierto).toBe('api');
@@ -178,20 +117,23 @@ describe('LigaPageComponent', () => {
       comp.abrirPanel('api');
       expect(comp.panelAbierto).toBe('ninguno');
     });
+
+    it('shows error and stays on "ligas" when listarCompeticiones fails on open', () => {
+      stubEquipos();
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockReturnValue(throwError(() => new Error('No hay API key configurada.')));
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.abrirPanel('api');
+
+      expect(comp.error).toBeTruthy();
+      expect(comp.apiPaso).toBe('ligas');
+      expect(comp.guardando).toBe(false);
+    });
   });
 
   // ── cerrarPanel() ──────────────────────────────────────────────────────────
   describe('cerrarPanel()', () => {
-    it('resets cambiarApiKey to false', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.cambiarApiKey = true;
-
-      comp.cerrarPanel();
-
-      expect(comp.cambiarApiKey).toBe(false);
-    });
-
     it('closes the panel', () => {
       stubEquipos();
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
@@ -211,69 +153,56 @@ describe('LigaPageComponent', () => {
 
       expect(comp.error).toBeNull();
     });
+
+    it('resets mostrarAvanzado to false', () => {
+      stubEquipos();
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.mostrarAvanzado = true;
+
+      comp.cerrarPanel();
+
+      expect(comp.mostrarAvanzado).toBe(false);
+    });
   });
 
   // ── cargarCompeticiones() ──────────────────────────────────────────────────
   describe('cargarCompeticiones()', () => {
-    it('sets error when apiKey is empty', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = '';
-
-      comp.cargarCompeticiones();
-
-      expect(comp.error).toBeTruthy();
-    });
-
-    it('sets error when apiKey is whitespace only', () => {
-      stubEquipos();
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = '   ';
-
-      comp.cargarCompeticiones();
-
-      expect(comp.error).toBeTruthy();
-    });
-
-    it('resets cambiarApiKey after successful call', () => {
-      stubEquipos();
-      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
-        .mockReturnValue(of([]));
-
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = 'valid-key';
-      comp.cambiarApiKey = true;
-
-      comp.cargarCompeticiones();
-
-      expect(comp.cambiarApiKey).toBe(false);
-    });
-
-    it('advances apiPaso to "ligas" on success', () => {
+    it('advances apiPaso to "ligas" and populates competiciones on success', () => {
       stubEquipos();
       vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
         .mockReturnValue(of([COMP_MOCK]));
 
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = 'valid-key';
-
       comp.cargarCompeticiones();
 
       expect(comp.apiPaso).toBe('ligas');
       expect(comp.competiciones.length).toBe(1);
+      expect(comp.guardando).toBe(false);
     });
 
-    it('shows service error message on failure', () => {
+    it('sets error and clears guardando on service failure', () => {
       stubEquipos();
       vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
         .mockReturnValue(throwError(() => new Error('403: API key inválida')));
 
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.apiKey = 'bad-key';
-
       comp.cargarCompeticiones();
 
       expect(comp.error).toContain('403');
+      expect(comp.guardando).toBe(false);
+    });
+
+    it('resets competiciones before each call (so stale data never persists)', () => {
+      stubEquipos();
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
+        .mockReturnValue(of([]));
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.competiciones = [COMP_MOCK];   // stale data
+
+      comp.cargarCompeticiones();
+
+      expect(comp.competiciones.length).toBe(0);
     });
   });
 
@@ -289,6 +218,7 @@ describe('LigaPageComponent', () => {
 
     it('abrirPanel("api") loads apiBaseInput from service', () => {
       stubEquipos();
+      stubListarCompeticiones();
       TestBed.inject(FootballDataService).setApiBase('https://custom.example.com/v4');
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.apiBaseInput = 'stale-value';
@@ -300,6 +230,7 @@ describe('LigaPageComponent', () => {
 
     it('abrirPanel("api") resets mostrarAvanzado to false', () => {
       stubEquipos();
+      stubListarCompeticiones();
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.mostrarAvanzado = true;
 
@@ -337,7 +268,6 @@ describe('LigaPageComponent', () => {
 
       comp.guardarApiBase();
 
-      // Service strips the slash; component must reflect the normalized value
       expect(comp.apiBaseInput).toBe('https://prod-proxy.example.com/v4');
     });
 
@@ -360,61 +290,52 @@ describe('LigaPageComponent', () => {
 
       comp.resetearApiBase();
 
-      // localStorage override cleared → falls back to dev environment default
       expect(comp.apiBaseInput).toBe('/fd-api/v4');
       expect(fdSvc.getApiBase()).toBe('/fd-api/v4');
     });
   });
 
-  // ── seleccionarCompeticion() — key lost mid-session ────────────────────────
-  describe('seleccionarCompeticion() — key disappears mid-session', () => {
-    it('resets apiPaso to "key" and clears apiKey when tieneApiKey() is false', () => {
+  // ── seleccionarCompeticion() ───────────────────────────────────────────────
+  describe('seleccionarCompeticion()', () => {
+    it('advances to "equipos" and populates equiposApi on success', () => {
       stubEquipos();
-      const fdSvc = TestBed.inject(FootballDataService);
-      vi.spyOn(fdSvc, 'listarEquipos').mockReturnValue(
-        throwError(() => new Error('La API key ya no está disponible.'))
-      );
-      vi.spyOn(fdSvc, 'tieneApiKey').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarEquipos')
+        .mockReturnValue(of([{ id: 57, name: 'Arsenal FC', shortName: 'Arsenal', tla: 'ARS', area: { name: 'England' } }]));
 
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.apiPaso = 'ligas';
-      comp.apiKey = 'was-valid';
 
       comp.seleccionarCompeticion(COMP_MOCK);
 
-      expect(comp.apiPaso).toBe('key');
-      expect(comp.apiKey).toBe('');
-      expect(comp.cambiarApiKey).toBe(false);
+      expect(comp.apiPaso).toBe('equipos');
+      expect(comp.equiposApi.length).toBe(1);
     });
 
-    it('keeps apiPaso at "ligas" for a non-key error (rate limit, 404…)', () => {
+    it('shows error and stays on "ligas" when listarEquipos fails', () => {
       stubEquipos();
-      const fdSvc = TestBed.inject(FootballDataService);
-      vi.spyOn(fdSvc, 'listarEquipos').mockReturnValue(
-        throwError(() => new Error('Límite de peticiones alcanzado (429).'))
-      );
-      vi.spyOn(fdSvc, 'tieneApiKey').mockReturnValue(true); // key still present
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarEquipos')
+        .mockReturnValue(throwError(() => new Error('429: Límite de peticiones.')));
 
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.apiPaso = 'ligas';
 
       comp.seleccionarCompeticion(COMP_MOCK);
 
+      expect(comp.error).toContain('429');
       expect(comp.apiPaso).toBe('ligas');
     });
 
-    it('shows the error message regardless of which error occurred', () => {
+    it('shows error when key is not configured (environment empty)', () => {
       stubEquipos();
-      const fdSvc = TestBed.inject(FootballDataService);
-      vi.spyOn(fdSvc, 'listarEquipos').mockReturnValue(
-        throwError(() => new Error('La API key ya no está disponible.'))
-      );
-      vi.spyOn(fdSvc, 'tieneApiKey').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(FootballDataService), 'listarEquipos')
+        .mockReturnValue(throwError(() => new Error('La API key no está disponible.')));
 
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.seleccionarCompeticion(COMP_MOCK);
 
       expect(comp.error).toBeTruthy();
+      // No 'key' step to go back to — component stays on 'ligas'
+      expect(comp.apiPaso).toBe('ligas');
     });
   });
 });

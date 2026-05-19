@@ -11,7 +11,7 @@ import {
 } from '../../services/football-data.service';
 
 type Panel = 'ninguno' | 'api' | 'manual';
-type ApiPaso = 'key' | 'ligas' | 'equipos';
+type ApiPaso = 'ligas' | 'equipos';
 
 interface EquipoManual {
   nombre: string;
@@ -43,44 +43,19 @@ export class LigaPageComponent implements OnInit {
   panelAbierto: Panel = 'ninguno';
 
   // API flow
-  apiPaso: ApiPaso = 'key';
-  apiKey = this.fdService.getApiKey() ?? '';
+  apiPaso: ApiPaso = 'ligas';
   competiciones: FdCompeticion[] = [];
   competicionSeleccionada: FdCompeticion | null = null;
   equiposApi: FdEquipo[] = [];
   equipoApiSeleccionado: FdEquipo | null = null;
-  /** Whether the user is in "change key" mode inside the saved-key view. */
-  cambiarApiKey = false;
 
-  // Advanced URL configuration (collapsed by default)
+  // Advanced URL configuration (collapsed by default, developer/admin use)
   mostrarAvanzado = false;
   apiBaseInput = '';
-
-  // ── API key helpers ──────────────────────────────
-  get tieneApiKeyGuardada(): boolean {
-    return this.fdService.tieneApiKey();
-  }
 
   /** Current effective base URL (environment default or localStorage override). */
   get apiBaseActual(): string {
     return this.fdService.getApiBase();
-  }
-
-  /**
-   * Returns the saved key with the middle characters replaced by bullets,
-   * keeping the first and last 4 characters visible.
-   * e.g. "abc123xyz789" → "abc1••••••xyz7"
-   */
-  get apiKeyMasked(): string {
-    const k = this.fdService.getApiKey() ?? '';
-    if (!k) return '';
-    const visible = 4;
-    if (k.length <= visible * 2) return '•'.repeat(k.length);
-    return (
-      k.slice(0, visible) +
-      '•'.repeat(Math.min(k.length - visible * 2, 10)) +
-      k.slice(-visible)
-    );
   }
 
   // Manual flow
@@ -138,16 +113,15 @@ export class LigaPageComponent implements OnInit {
     }
     this.panelAbierto = panel;
     if (panel === 'api') {
-      // Always re-read from localStorage so in-memory values never go stale.
-      this.apiKey = this.fdService.getApiKey() ?? '';
       this.apiBaseInput = this.fdService.getApiBase();
-      this.cambiarApiKey = false;
       this.mostrarAvanzado = false;
-      this.apiPaso = 'key';
+      this.apiPaso = 'ligas';
       this.competiciones = [];
       this.competicionSeleccionada = null;
       this.equiposApi = [];
       this.equipoApiSeleccionado = null;
+      // Load competitions immediately — no key-entry step needed.
+      this.cargarCompeticiones();
     }
     if (panel === 'manual') {
       this.equipoManual = this.nuevoEquipoManual();
@@ -156,7 +130,6 @@ export class LigaPageComponent implements OnInit {
 
   cerrarPanel(): void {
     this.panelAbierto = 'ninguno';
-    this.cambiarApiKey = false;
     this.mostrarAvanzado = false;
     this.error = null;
   }
@@ -182,20 +155,15 @@ export class LigaPageComponent implements OnInit {
   }
 
   // ── API flow ─────────────────────────────────
+  /** Load the list of competitions. Called automatically when the panel opens, and on retry. */
   cargarCompeticiones(): void {
-    if (!this.apiKey.trim()) {
-      this.error = 'Introduce una API key válida.';
-      return;
-    }
-    this.fdService.setApiKey(this.apiKey);
-    this.cambiarApiKey = false;   // lock in the key that was submitted
     this.guardando = true;
     this.error = null;
+    this.competiciones = [];
     this.fdService.listarCompeticiones().subscribe({
       next: (comps) => {
         this.competiciones = comps;
         this.guardando = false;
-        this.apiPaso = 'ligas';
       },
       error: (err: Error) => {
         this.error = err.message;
@@ -218,13 +186,8 @@ export class LigaPageComponent implements OnInit {
       error: (err: Error) => {
         this.error = err.message;
         this.guardando = false;
-        // Key disappeared mid-session → return the user to the key entry step
-        // instead of leaving them stuck on the 'ligas' screen with no action.
-        if (!this.fdService.tieneApiKey()) {
-          this.apiKey = '';
-          this.cambiarApiKey = false;
-          this.apiPaso = 'key';
-        }
+        // The error banner describes the problem; the user stays on 'ligas'
+        // and can retry or adjust the URL via the advanced settings (⚙).
       },
     });
   }
@@ -291,12 +254,8 @@ export class LigaPageComponent implements OnInit {
   }
 
   volverApiPaso(): void {
-    const prev: Record<ApiPaso, ApiPaso> = {
-      key: 'key',
-      ligas: 'key',
-      equipos: 'ligas',
-    };
-    this.apiPaso = prev[this.apiPaso];
+    // Only called from 'equipos' → go back to the league selection.
+    this.apiPaso = 'ligas';
     this.error = null;
   }
 
