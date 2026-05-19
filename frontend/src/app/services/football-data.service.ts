@@ -35,17 +35,69 @@ export interface FdJugadorSquad {
   shirtNumber?: number | null;
 }
 
+/**
+ * Tarjeta en un partido, tal como la devuelve `GET /teams/{id}/matches`.
+ * Referencia: https://www.football-data.org/documentation/api#bookings
+ */
+export interface FdBooking {
+  minute: number;
+  team: { id: number; name: string };
+  player: { id: number; name: string };
+  /** YELLOW | RED | YELLOW_RED (doble amarilla → roja directa) */
+  card: 'YELLOW' | 'RED' | 'YELLOW_RED';
+}
+
+/**
+ * Jugador en la alineación titular o en el banquillo.
+ * Devuelto dentro de `homeTeam.lineup` / `homeTeam.bench` (y lo mismo para `awayTeam`).
+ */
+export interface FdLineupPlayer {
+  id: number;
+  name: string;
+  position: string | null;
+  shirtNumber: number | null;
+}
+
+/**
+ * Sustitución realizada durante un partido.
+ * Devuelta dentro del array `substitutions` del objeto match.
+ */
+export interface FdSubstitution {
+  minute: number;
+  team: { id: number; name: string };
+  playerOut: { id: number; name: string };
+  playerIn: { id: number; name: string };
+}
+
 /** Partido tal como lo devuelve `GET /teams/{id}/matches`. */
 export interface FdMatch {
   id: number;
   utcDate: string;   // ISO datetime: "2024-03-15T15:00:00Z"
   status: string;    // 'FINISHED' | 'SCHEDULED' | ...
   competition: { id: number; code: string; name: string };
-  homeTeam: { id: number; name: string; shortName?: string };
-  awayTeam: { id: number; name: string; shortName?: string };
+  homeTeam: {
+    id: number;
+    name: string;
+    shortName?: string;
+    /** Alineación titular (disponible en partidos FINISHED). */
+    lineup?: FdLineupPlayer[];
+    /** Jugadores en el banquillo. */
+    bench?: FdLineupPlayer[];
+  };
+  awayTeam: {
+    id: number;
+    name: string;
+    shortName?: string;
+    lineup?: FdLineupPlayer[];
+    bench?: FdLineupPlayer[];
+  };
   score: {
     fullTime: { home: number | null; away: number | null };
   };
+  /** Tarjetas del partido (amarillas/rojas). Puede estar ausente si la API no lo incluye. */
+  bookings?: FdBooking[];
+  /** Cambios realizados durante el partido. */
+  substitutions?: FdSubstitution[];
 }
 
 /**

@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
 import { Observable, of, Subject, throwError } from 'rxjs';
-import { LigaPageComponent } from './liga-page.component';
+import { LigaPageComponent, agregarStatsDePartidos } from './liga-page.component';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { JugadorService } from '../../services/jugador.service';
@@ -15,6 +15,9 @@ import {
   FdGoleador,
   FdJugadorSquad,
   FdMatch,
+  FdBooking,
+  FdLineupPlayer,
+  FdSubstitution,
 } from '../../services/football-data.service';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -828,6 +831,358 @@ describe('LigaPageComponent', () => {
       expect(comp.error).toBeTruthy();
       // No 'key' step to go back to — component stays on 'ligas'
       expect(comp.apiPaso).toBe('ligas');
+    });
+  });
+
+  // ── agregarStatsDePartidos() ──────────────────────────────────────────────
+  describe('agregarStatsDePartidos()', () => {
+    const TEAM_ID = 57;
+
+    function makeMatch(overrides: Partial<FdMatch> = {}): FdMatch {
+      return {
+        id: 1,
+        utcDate: '2024-03-15T15:00:00Z',
+        status: 'FINISHED',
+        competition: { id: 2021, code: 'PL', name: 'Premier League' },
+        homeTeam: { id: TEAM_ID, name: 'Arsenal FC' },
+        awayTeam: { id: 64,      name: 'Liverpool FC' },
+        score: { fullTime: { home: 1, away: 0 } },
+        ...overrides,
+      };
+    }
+
+    it('returns empty map for matches with no bookings or lineups', () => {
+      const result = agregarStatsDePartidos([makeMatch()], TEAM_ID);
+      expect(result.size).toBe(0);
+    });
+
+    it('counts a yellow card for the correct player', () => {
+      const booking: FdBooking = {
+        minute: 30,
+        team:   { id: TEAM_ID, name: 'Arsenal FC' },
+        player: { id: 10, name: 'Player A' },
+        card:   'YELLOW',
+      };
+      const result = agregarStatsDePartidos([makeMatch({ bookings: [booking] })], TEAM_ID);
+      expect(result.get(10)?.amarillas).toBe(1);
+      expect(result.get(10)?.rojas).toBe(0);
+    });
+
+    it('counts a RED card as a red card', () => {
+      const booking: FdBooking = {
+        minute: 55,
+        team:   { id: TEAM_ID, name: 'Arsenal FC' },
+        player: { id: 10, name: 'Player A' },
+        card:   'RED',
+      };
+      const result = agregarStatsDePartidos([makeMatch({ bookings: [booking] })], TEAM_ID);
+      expect(result.get(10)?.rojas).toBe(1);
+      expect(result.get(10)?.amarillas).toBe(0);
+    });
+
+    it('counts a YELLOW_RED card as a red card', () => {
+      const booking: FdBooking = {
+        minute: 70,
+        team:   { id: TEAM_ID, name: 'Arsenal FC' },
+        player: { id: 10, name: 'Player A' },
+        card:   'YELLOW_RED',
+      };
+      const result = agregarStatsDePartidos([makeMatch({ bookings: [booking] })], TEAM_ID);
+      expect(result.get(10)?.rojas).toBe(1);
+      expect(result.get(10)?.amarillas).toBe(0);
+    });
+
+    it('ignores bookings from the opposing team', () => {
+      const opponentBooking: FdBooking = {
+        minute: 20,
+        team:   { id: 64, name: 'Liverpool FC' },
+        player: { id: 99, name: 'Opponent Player' },
+        card:   'YELLOW',
+      };
+      const result = agregarStatsDePartidos([makeMatch({ bookings: [opponentBooking] })], TEAM_ID);
+      expect(result.has(99)).toBe(false);
+    });
+
+    it('accumulates cards across multiple matches', () => {
+      const booking: FdBooking = {
+        minute: 30,
+        team:   { id: TEAM_ID, name: 'Arsenal FC' },
+        player: { id: 10, name: 'Player A' },
+        card:   'YELLOW',
+      };
+      const match1 = makeMatch({ id: 1, bookings: [booking] });
+      const match2 = makeMatch({ id: 2, bookings: [booking] });
+      const result = agregarStatsDePartidos([match1, match2], TEAM_ID);
+      expect(result.get(10)?.amarillas).toBe(2);
+    });
+
+    it('gives 90 minutes to a starter who played the full game (home team)', () => {
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const match = makeMatch({
+        homeTeam: { id: TEAM_ID, name: 'Arsenal FC', lineup },
+      });
+      const result = agregarStatsDePartidos([match], TEAM_ID);
+      expect(result.get(10)?.minutos).toBe(90);
+    });
+
+    it('gives 90 minutes to a starter who played the full game (away team)', () => {
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const match = makeMatch({
+        homeTeam: { id: 64, name: 'Liverpool FC' },
+        awayTeam: { id: TEAM_ID, name: 'Arsenal FC', lineup },
+      });
+      const result = agregarStatsDePartidos([match], TEAM_ID);
+      expect(result.get(10)?.minutos).toBe(90);
+    });
+
+    it('gives the sub-off minute to a starter who was substituted out', () => {
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const sub: FdSubstitution = {
+        minute:    65,
+        team:      { id: TEAM_ID, name: 'Arsenal FC' },
+        playerOut: { id: 10, name: 'Player A' },
+        playerIn:  { id: 20, name: 'Player B' },
+      };
+      const match = makeMatch({
+        homeTeam:      { id: TEAM_ID, name: 'Arsenal FC', lineup },
+        substitutions: [sub],
+      });
+      const result = agregarStatsDePartidos([match], TEAM_ID);
+      expect(result.get(10)?.minutos).toBe(65);
+    });
+
+    it('gives 90 - sub-on minute to a player who came off the bench', () => {
+      const sub: FdSubstitution = {
+        minute:    65,
+        team:      { id: TEAM_ID, name: 'Arsenal FC' },
+        playerOut: { id: 10, name: 'Player A' },
+        playerIn:  { id: 20, name: 'Player B' },
+      };
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const match = makeMatch({
+        homeTeam:      { id: TEAM_ID, name: 'Arsenal FC', lineup },
+        substitutions: [sub],
+      });
+      const result = agregarStatsDePartidos([match], TEAM_ID);
+      expect(result.get(20)?.minutos).toBe(25); // 90 - 65
+    });
+
+    it('accumulates minutes across multiple matches', () => {
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const match1 = makeMatch({ id: 1, homeTeam: { id: TEAM_ID, name: 'Arsenal FC', lineup } });
+      const match2 = makeMatch({ id: 2, homeTeam: { id: TEAM_ID, name: 'Arsenal FC', lineup } });
+      const result = agregarStatsDePartidos([match1, match2], TEAM_ID);
+      expect(result.get(10)?.minutos).toBe(180); // 90 + 90
+    });
+
+    it('ignores substitutions from the opposing team for minute calculation', () => {
+      const opponentSub: FdSubstitution = {
+        minute:    45,
+        team:      { id: 64, name: 'Liverpool FC' },
+        playerOut: { id: 99, name: 'Opp Out' },
+        playerIn:  { id: 88, name: 'Opp In' },
+      };
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const match = makeMatch({
+        homeTeam:      { id: TEAM_ID, name: 'Arsenal FC', lineup },
+        substitutions: [opponentSub],
+      });
+      const result = agregarStatsDePartidos([match], TEAM_ID);
+      // Player 10 started and was not subbed out → 90 min
+      expect(result.get(10)?.minutos).toBe(90);
+      // Opponent players should not appear in the map
+      expect(result.has(99)).toBe(false);
+      expect(result.has(88)).toBe(false);
+    });
+
+    it('handles missing bookings and substitutions arrays gracefully', () => {
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Attacker', shirtNumber: 9 },
+      ];
+      // No bookings, no substitutions fields at all
+      const match: FdMatch = {
+        id: 1,
+        utcDate: '2024-03-15T15:00:00Z',
+        status: 'FINISHED',
+        competition: { id: 2021, code: 'PL', name: 'Premier League' },
+        homeTeam: { id: TEAM_ID, name: 'Arsenal FC', lineup },
+        awayTeam: { id: 64, name: 'Liverpool FC' },
+        score: { fullTime: { home: 1, away: 0 } },
+      };
+      expect(() => agregarStatsDePartidos([match], TEAM_ID)).not.toThrow();
+      const result = agregarStatsDePartidos([match], TEAM_ID);
+      expect(result.get(10)?.minutos).toBe(90);
+    });
+  });
+
+  // ── confirmarEquipoApi() — tarjetas y minutos desde partidos ──────────────
+  describe('confirmarEquipoApi() — tarjetas y minutos desde partidos', () => {
+    it('populates tarjetasAmarillas from match bookings', () => {
+      stubEquipos();
+
+      const squadWithPlayer: FdJugadorSquad[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const booking: FdBooking = {
+        minute: 30,
+        team:   { id: FD_EQUIPO_MOCK.id, name: FD_EQUIPO_MOCK.name },
+        player: { id: 10, name: 'Player A' },
+        card:   'YELLOW',
+      };
+      const matchWithBooking: FdMatch = {
+        id: 1,
+        utcDate: '2024-03-15T15:00:00Z',
+        status: 'FINISHED',
+        competition: { id: 2021, code: 'PL', name: 'Premier League' },
+        homeTeam: { id: FD_EQUIPO_MOCK.id, name: FD_EQUIPO_MOCK.name },
+        awayTeam: { id: 64, name: 'Liverpool FC' },
+        score: { fullTime: { home: 1, away: 0 } },
+        bookings: [booking],
+      };
+
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla')
+        .mockReturnValue([]);
+
+      stubConfirmar({
+        plantilla:  of(squadWithPlayer),
+        partidos:   of([matchWithBooking]),
+        goleadores: of([]),
+      });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(importSpy).toHaveBeenCalledOnce();
+      const payloads = importSpy.mock.calls[0][1];
+      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      expect(playerPayload?.tarjetasAmarillas).toBe(1);
+      expect(playerPayload?.tarjetasRojas).toBe(0);
+    });
+
+    it('populates tarjetasRojas from YELLOW_RED bookings', () => {
+      stubEquipos();
+
+      const squadWithPlayer: FdJugadorSquad[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const booking: FdBooking = {
+        minute: 70,
+        team:   { id: FD_EQUIPO_MOCK.id, name: FD_EQUIPO_MOCK.name },
+        player: { id: 10, name: 'Player A' },
+        card:   'YELLOW_RED',
+      };
+      const matchWithBooking: FdMatch = {
+        id: 1,
+        utcDate: '2024-03-15T15:00:00Z',
+        status: 'FINISHED',
+        competition: { id: 2021, code: 'PL', name: 'Premier League' },
+        homeTeam: { id: FD_EQUIPO_MOCK.id, name: FD_EQUIPO_MOCK.name },
+        awayTeam: { id: 64, name: 'Liverpool FC' },
+        score: { fullTime: { home: 1, away: 0 } },
+        bookings: [booking],
+      };
+
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla')
+        .mockReturnValue([]);
+
+      stubConfirmar({
+        plantilla:  of(squadWithPlayer),
+        partidos:   of([matchWithBooking]),
+        goleadores: of([]),
+      });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      const payloads = importSpy.mock.calls[0][1];
+      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      expect(playerPayload?.tarjetasRojas).toBe(1);
+    });
+
+    it('populates minutos from lineup data', () => {
+      stubEquipos();
+
+      const squadWithPlayer: FdJugadorSquad[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const lineup: FdLineupPlayer[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+      const matchWithLineup: FdMatch = {
+        id: 1,
+        utcDate: '2024-03-15T15:00:00Z',
+        status: 'FINISHED',
+        competition: { id: 2021, code: 'PL', name: 'Premier League' },
+        homeTeam: { id: FD_EQUIPO_MOCK.id, name: FD_EQUIPO_MOCK.name, lineup },
+        awayTeam: { id: 64, name: 'Liverpool FC' },
+        score: { fullTime: { home: 1, away: 0 } },
+      };
+
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla')
+        .mockReturnValue([]);
+
+      stubConfirmar({
+        plantilla:  of(squadWithPlayer),
+        partidos:   of([matchWithLineup]),
+        goleadores: of([]),
+      });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      const payloads = importSpy.mock.calls[0][1];
+      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      expect(playerPayload?.minutos).toBe(90);
+    });
+
+    it('gives 0 tarjetas and 0 minutos to players with no match data', () => {
+      stubEquipos();
+
+      const squadWithPlayer: FdJugadorSquad[] = [
+        { id: 10, name: 'Player A', position: 'Midfielder', shirtNumber: 8 },
+      ];
+
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla')
+        .mockReturnValue([]);
+
+      stubConfirmar({
+        plantilla:  of(squadWithPlayer),
+        partidos:   of([]),  // no matches at all
+        goleadores: of([]),
+      });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      const payloads = importSpy.mock.calls[0][1];
+      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      expect(playerPayload?.tarjetasAmarillas).toBe(0);
+      expect(playerPayload?.tarjetasRojas).toBe(0);
+      expect(playerPayload?.minutos).toBe(0);
     });
   });
 });
