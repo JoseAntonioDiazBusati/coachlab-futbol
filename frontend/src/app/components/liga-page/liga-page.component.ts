@@ -1,14 +1,63 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
+import { JugadorService } from '../../services/jugador.service';
+import { PartidoService, PartidoImportado } from '../../services/partido.service';
 import {
   FootballDataService,
   FdCompeticion,
   FdEquipo,
+  FdJugadorSquad,
+  FdMatch,
 } from '../../services/football-data.service';
+
+// ── Pure helpers (no component state needed) ─────────────────────────────────
+
+/**
+ * Mapea la posición en inglés de football-data.org al vocabulario español
+ * que usa `JugadorService` para validar posiciones.
+ */
+function mapFdPosicion(position: string | null | undefined): string {
+  switch (position) {
+    case 'Goalkeeper': return 'Portero';
+    case 'Defender':   return 'Defensa';
+    case 'Midfielder': return 'Centrocampista';
+    case 'Attacker':   return 'Delantero';
+    default:           return 'Centrocampista';
+  }
+}
+
+/**
+ * Convierte un `FdMatch` al formato `PartidoImportado` desde la perspectiva
+ * del equipo con ID `fdTeamId`.
+ */
+function mapFdMatchToPartido(match: FdMatch, fdTeamId: number): PartidoImportado {
+  const esLocal      = match.homeTeam.id === fdTeamId;
+  const gF           = match.score.fullTime;
+  const golesNuestros = esLocal ? (gF.home ?? 0) : (gF.away ?? 0);
+  const golesRivales  = esLocal ? (gF.away ?? 0) : (gF.home ?? 0);
+  const rival         = esLocal
+    ? (match.awayTeam.shortName ?? match.awayTeam.name)
+    : (match.homeTeam.shortName ?? match.homeTeam.name);
+
+  const resultado: 'VICTORIA' | 'EMPATE' | 'DERROTA' =
+    golesNuestros > golesRivales ? 'VICTORIA' :
+    golesNuestros < golesRivales ? 'DERROTA'  : 'EMPATE';
+
+  return {
+    rival,
+    fecha: match.utcDate.split('T')[0],
+    esLocal,
+    golesNuestros,
+    golesRivales,
+    resultado,
+  };
+}
 
 type Panel = 'ninguno' | 'api' | 'manual';
 type ApiPaso = 'ligas' | 'equipos';
@@ -28,10 +77,12 @@ interface EquipoManual {
   styleUrl: './liga-page.component.scss',
 })
 export class LigaPageComponent implements OnInit {
-  private readonly equipoService = inject(EquipoService);
-  private readonly equipoActivo = inject(EquipoActivoService);
-  private readonly fdService = inject(FootballDataService);
-  private readonly router = inject(Router);
+  private readonly equipoService  = inject(EquipoService);
+  private readonly equipoActivo   = inject(EquipoActivoService);
+  private readonly fdService      = inject(FootballDataService);
+  private readonly jugadorService = inject(JugadorService);
+  private readonly partidoService = inject(PartidoService);
+  private readonly router         = inject(Router);
 
   equipos: Equipo[] = [];
   equipoActivoActual: Equipo | null = null;
@@ -194,18 +245,60 @@ export class LigaPageComponent implements OnInit {
 
   confirmarEquipoApi(): void {
     if (!this.equipoApiSeleccionado) return;
-    const fd = this.equipoApiSeleccionado;
+    const fd   = this.equipoApiSeleccionado;
+    const comp = this.competicionSeleccionada;
     this.guardando = true;
     this.error = null;
+
     this.equipoService
       .crear({
-        nombre: fd.name,
-        categoria: this.competicionSeleccionada?.name,
+        nombre:    fd.name,
+        categoria: comp?.name,
         temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
-        ciudad: fd.area?.name,
+        ciudad:    fd.area?.name,
       })
+      .pipe(
+        switchMap((equipo) =>
+          forkJoin({
+            equipo: of(equipo),
+            // Squad and match calls are non-blocking: a failure here must
+            // NOT roll back the team that was already created.
+            plantilla: this.fdService.listarPlantillaEquipo(fd.id).pipe(
+              catchError(() => of([] as FdJugadorSquad[])),
+            ),
+            partidos: this.fdService.listarPartidosEquipo(fd.id).pipe(
+              catchError(() => of([] as FdMatch[])),
+            ),
+          }),
+        ),
+      )
       .subscribe({
-        next: (equipo) => {
+        next: ({ equipo, plantilla, partidos }) => {
+          // ── Persist squad ────────────────────────────────────────────
+          if (plantilla.length > 0) {
+            this.jugadorService.importarPlantilla(
+              equipo.id,
+              plantilla.map((j) => ({
+                nombre:   j.name,
+                posicion: mapFdPosicion(j.position),
+                dorsal:   j.shirtNumber ?? undefined,
+                edad:     j.dateOfBirth
+                  ? new Date().getFullYear() -
+                    new Date(j.dateOfBirth).getFullYear()
+                  : undefined,
+              })),
+            );
+          }
+
+          // ── Persist matches (most-recent-first from the API) ─────────
+          if (partidos.length > 0) {
+            this.partidoService.guardar(
+              equipo.id,
+              partidos.map((m) => mapFdMatchToPartido(m, fd.id)),
+            );
+          }
+
+          // ── Activate & finish ────────────────────────────────────────
           this.equipoActivo.setEquipo(equipo.id);
           this.guardando = false;
           this.panelAbierto = 'ninguno';

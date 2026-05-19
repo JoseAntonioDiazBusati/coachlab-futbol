@@ -2,13 +2,18 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
-import { of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { LigaPageComponent } from './liga-page.component';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
-import { EquipoService } from '../../services/equipo.service';
+import { EquipoService, Equipo } from '../../services/equipo.service';
+import { JugadorService } from '../../services/jugador.service';
+import { PartidoService } from '../../services/partido.service';
 import {
   FootballDataService,
   FdCompeticion,
+  FdEquipo,
+  FdJugadorSquad,
+  FdMatch,
 } from '../../services/football-data.service';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -20,6 +25,37 @@ const COMP_MOCK: FdCompeticion = {
   area: { name: 'England' },
 };
 
+const FD_EQUIPO_MOCK: FdEquipo = {
+  id: 57,
+  name: 'Arsenal FC',
+  shortName: 'Arsenal',
+  tla: 'ARS',
+  area: { name: 'England' },
+};
+
+const EQUIPO_CREADO_MOCK: Equipo = {
+  id: 99,
+  nombre: 'Arsenal FC',
+  categoria: 'Premier League',
+  temporada: '2025/2026',
+  ciudad: 'England',
+};
+
+const SQUAD_MOCK: FdJugadorSquad[] = [
+  { id: 1, name: 'Bukayo Saka',     position: 'Attacker',   shirtNumber: 7  },
+  { id: 2, name: 'David Raya',      position: 'Goalkeeper', shirtNumber: 22 },
+  { id: 3, name: 'William Saliba',  position: 'Defender',   shirtNumber: 12 },
+];
+
+const MATCH_MOCK: FdMatch = {
+  id: 1001,
+  utcDate: '2024-03-15T15:00:00Z',
+  status: 'FINISHED',
+  homeTeam: { id: 57, name: 'Arsenal FC',   shortName: 'Arsenal'   },
+  awayTeam: { id: 64, name: 'Liverpool FC', shortName: 'Liverpool' },
+  score: { fullTime: { home: 2, away: 1 } },
+};
+
 function stubEquipos(): void {
   vi.spyOn(TestBed.inject(EquipoService), 'listar').mockReturnValue(of([]));
 }
@@ -28,6 +64,24 @@ function stubEquipos(): void {
 function stubListarCompeticiones(comps: FdCompeticion[] = []): void {
   vi.spyOn(TestBed.inject(FootballDataService), 'listarCompeticiones')
     .mockReturnValue(of(comps));
+}
+
+/**
+ * Stubs all FD service calls needed by confirmarEquipoApi().
+ * Pass overrides to change individual stubs.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function stubConfirmar(overrides: {
+  crear?:    Observable<any>;
+  plantilla?: Observable<any>;
+  partidos?:  Observable<any>;
+} = {}): void {
+  vi.spyOn(TestBed.inject(EquipoService), 'crear')
+    .mockReturnValue(overrides.crear ?? of(EQUIPO_CREADO_MOCK));
+  vi.spyOn(TestBed.inject(FootballDataService), 'listarPlantillaEquipo')
+    .mockReturnValue(overrides.plantilla ?? of(SQUAD_MOCK));
+  vi.spyOn(TestBed.inject(FootballDataService), 'listarPartidosEquipo')
+    .mockReturnValue(overrides.partidos ?? of([MATCH_MOCK]));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +98,8 @@ describe('LigaPageComponent', () => {
         EquipoService,
         EquipoActivoService,
         FootballDataService,
+        JugadorService,
+        PartidoService,
       ],
     }).compileComponents();
   });
@@ -292,6 +348,170 @@ describe('LigaPageComponent', () => {
 
       expect(comp.apiBaseInput).toBe('/fd-api/v4');
       expect(fdSvc.getApiBase()).toBe('/fd-api/v4');
+    });
+  });
+
+  // ── confirmarEquipoApi() ───────────────────────────────────────────────────
+  describe('confirmarEquipoApi()', () => {
+    it('does nothing when no team is selected', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      const crearSpy = vi.spyOn(TestBed.inject(EquipoService), 'crear');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = null;
+      comp.confirmarEquipoApi();
+
+      expect(crearSpy).not.toHaveBeenCalled();
+    });
+
+    it('closes the panel and shows success message on full import', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar();
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(comp.panelAbierto).toBe('ninguno');
+      expect(comp.guardando).toBe(false);
+      expect(comp.exito).toBeTruthy();
+    });
+
+    it('bulk-imports squad players via JugadorService.importarPlantilla()', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar();
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(importSpy).toHaveBeenCalledOnce();
+      const [equipoId, jugadores] = importSpy.mock.calls[0];
+      expect(equipoId).toBe(EQUIPO_CREADO_MOCK.id);
+      expect(jugadores).toHaveLength(SQUAD_MOCK.length);
+      // Position mapping
+      expect(jugadores[0]).toMatchObject({ nombre: 'Bukayo Saka',    posicion: 'Delantero',      dorsal: 7  });
+      expect(jugadores[1]).toMatchObject({ nombre: 'David Raya',     posicion: 'Portero',         dorsal: 22 });
+      expect(jugadores[2]).toMatchObject({ nombre: 'William Saliba', posicion: 'Defensa',         dorsal: 12 });
+    });
+
+    it('persists imported matches via PartidoService.guardar()', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar();
+      const guardarSpy = vi.spyOn(TestBed.inject(PartidoService), 'guardar');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(guardarSpy).toHaveBeenCalledOnce();
+      const [equipoId, partidos] = guardarSpy.mock.calls[0];
+      expect(equipoId).toBe(EQUIPO_CREADO_MOCK.id);
+      expect(partidos).toHaveLength(1);
+      // Arsenal was home (id 57) → 2-1 win
+      expect(partidos[0]).toMatchObject({
+        rival:         'Liverpool',
+        fecha:         '2024-03-15',
+        esLocal:       true,
+        golesNuestros: 2,
+        golesRivales:  1,
+        resultado:     'VICTORIA',
+      });
+    });
+
+    it('still succeeds and closes panel when squad API fails', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({
+        plantilla: throwError(() => new Error('429: rate limit')),
+      });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(comp.panelAbierto).toBe('ninguno');
+      expect(comp.guardando).toBe(false);
+      expect(comp.error).toBeNull();
+    });
+
+    it('still succeeds and closes panel when matches API fails', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({
+        partidos: throwError(() => new Error('429: rate limit')),
+      });
+      const guardarSpy = vi.spyOn(TestBed.inject(PartidoService), 'guardar');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(comp.panelAbierto).toBe('ninguno');
+      expect(guardarSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows error and keeps panel open when team creation fails', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      vi.spyOn(TestBed.inject(EquipoService), 'crear')
+        .mockReturnValue(throwError(() => new Error('Error de red')));
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.panelAbierto = 'api';
+
+      comp.confirmarEquipoApi();
+
+      expect(comp.error).toContain('Error de red');
+      expect(comp.guardando).toBe(false);
+      expect(comp.panelAbierto).toBe('api');
+    });
+
+    it('skips importarPlantilla when squad is empty', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({ plantilla: of([]) });
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(importSpy).not.toHaveBeenCalled();
+    });
+
+    it('skips guardar when matches list is empty', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({ partidos: of([]) });
+      const guardarSpy = vi.spyOn(TestBed.inject(PartidoService), 'guardar');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(guardarSpy).not.toHaveBeenCalled();
     });
   });
 
