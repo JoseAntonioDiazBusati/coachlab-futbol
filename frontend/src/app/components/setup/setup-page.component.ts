@@ -13,6 +13,7 @@ import {
   PlantillaJugador,
   CrearJugadorPayload,
 } from '../../services/jugador.service';
+import { getCurrentSeason } from '../../utils/temporada.utils';
 
 type Paso = 'metodo' | 'api-key' | 'api-ligas' | 'api-equipos' | 'manual' | 'jugadores';
 
@@ -53,7 +54,7 @@ export class SetupPageComponent {
   equipoManual: EquipoManual = {
     nombre: '',
     categoria: '',
-    temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+    temporada: getCurrentSeason(),
     ciudad: '',
   };
 
@@ -138,7 +139,7 @@ export class SetupPageComponent {
       .crear({
         nombre: fd.name,
         categoria: this.competicionSeleccionada?.name,
-        temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+        temporada: getCurrentSeason(),
         ciudad: fd.area?.name,
       })
       .subscribe({
