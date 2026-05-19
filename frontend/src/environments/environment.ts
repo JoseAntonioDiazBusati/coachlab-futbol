@@ -14,4 +14,12 @@ export const environment = {
    * En producción (environment.prod.ts) apunta directamente a la API.
    */
   fdApiBase: '/fd-api/v4',
+  /**
+   * API key de football-data.org.
+   * Rellena con tu clave personal antes de ejecutar la aplicación.
+   * Obtén una gratuita en https://www.football-data.org/client/register
+   *
+   * ⚠ No subas este valor a control de versiones si el repositorio es público.
+   */
+  fdApiKey: '',
 } as const;

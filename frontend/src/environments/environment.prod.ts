@@ -12,4 +12,12 @@ export const environment = {
    * No requiere proxy porque el servidor incluye cabeceras CORS.
    */
   fdApiBase: 'https://api.football-data.org/v4',
+  /**
+   * API key de football-data.org.
+   * Rellena con tu clave de producción antes de compilar.
+   * Obtén una gratuita en https://www.football-data.org/client/register
+   *
+   * ⚠ No subas este valor a control de versiones si el repositorio es público.
+   */
+  fdApiKey: '',
 } as const;
