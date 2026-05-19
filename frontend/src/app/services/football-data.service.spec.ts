@@ -4,7 +4,13 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { FootballDataService, FdCompeticion, FdEquipo } from './football-data.service';
+import {
+  FootballDataService,
+  FdCompeticion,
+  FdEquipo,
+  FdJugadorSquad,
+  FdMatch,
+} from './football-data.service';
 
 const KEY = 'test-api-key-123';
 
@@ -242,6 +248,89 @@ describe('FootballDataService', () => {
     // Distinct from "no key at all" — signals the key is not available at request time.
     expect(errorMsg.toLowerCase()).toContain('disponible');
     expect(errorMsg).toContain('fdApiKey');
+  });
+
+  // ── listarPlantillaEquipo ────────────────────────
+
+  it('listarPlantillaEquipo errors when no API key', () => {
+    let errorMsg = '';
+    service.listarPlantillaEquipo(57).subscribe({ error: (e: Error) => (errorMsg = e.message) });
+    expect(errorMsg).toContain('disponible');
+  });
+
+  it('listarPlantillaEquipo calls correct URL with X-Auth-Token header', () => {
+    service.setApiKey(KEY);
+    const squad: FdJugadorSquad[] = [
+      { id: 1, name: 'Bukayo Saka', position: 'Attacker', shirtNumber: 7 },
+    ];
+    let result: FdJugadorSquad[] = [];
+    service.listarPlantillaEquipo(57).subscribe((s) => (result = s));
+
+    const req = httpMock.expectOne('/fd-api/v4/teams/57');
+    expect(req.request.headers.get('X-Auth-Token')).toBe(KEY);
+    req.flush({ squad });
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('Bukayo Saka');
+  });
+
+  it('listarPlantillaEquipo handles null squad response', () => {
+    service.setApiKey(KEY);
+    let result: FdJugadorSquad[] | null = null;
+    service.listarPlantillaEquipo(57).subscribe((s) => (result = s));
+    httpMock.expectOne('/fd-api/v4/teams/57').flush({ squad: null });
+    expect(result).toEqual([]);
+  });
+
+  // ── listarPartidosEquipo ─────────────────────────
+
+  it('listarPartidosEquipo errors when no API key', () => {
+    let errorMsg = '';
+    service.listarPartidosEquipo(57).subscribe({ error: (e: Error) => (errorMsg = e.message) });
+    expect(errorMsg).toContain('disponible');
+  });
+
+  it('listarPartidosEquipo calls correct URL with status=FINISHED and limit param', () => {
+    service.setApiKey(KEY);
+    const matches: FdMatch[] = [
+      {
+        id: 1,
+        utcDate: '2024-03-15T15:00:00Z',
+        status: 'FINISHED',
+        homeTeam: { id: 57, name: 'Arsenal FC', shortName: 'Arsenal' },
+        awayTeam: { id: 64, name: 'Liverpool FC', shortName: 'Liverpool' },
+        score: { fullTime: { home: 2, away: 1 } },
+      },
+    ];
+    let result: FdMatch[] = [];
+    service.listarPartidosEquipo(57).subscribe((m) => (result = m));
+
+    const req = httpMock.expectOne(
+      (r) => r.url === '/fd-api/v4/teams/57/matches',
+    );
+    expect(req.request.params.get('status')).toBe('FINISHED');
+    expect(req.request.params.get('limit')).toBe('10');
+    expect(req.request.headers.get('X-Auth-Token')).toBe(KEY);
+    req.flush({ matches });
+    expect(result.length).toBe(1);
+    expect(result[0].id).toBe(1);
+  });
+
+  it('listarPartidosEquipo accepts custom limit', () => {
+    service.setApiKey(KEY);
+    service.listarPartidosEquipo(57, 5).subscribe();
+    const req = httpMock.expectOne(
+      (r) => r.url === '/fd-api/v4/teams/57/matches',
+    );
+    expect(req.request.params.get('limit')).toBe('5');
+    req.flush({ matches: [] });
+  });
+
+  it('listarPartidosEquipo handles null matches response', () => {
+    service.setApiKey(KEY);
+    let result: FdMatch[] | null = null;
+    service.listarPartidosEquipo(57).subscribe((m) => (result = m));
+    httpMock.expectOne((r) => r.url === '/fd-api/v4/teams/57/matches').flush({ matches: null });
+    expect(result).toEqual([]);
   });
 
   it('uses custom apiBase override when making requests', () => {

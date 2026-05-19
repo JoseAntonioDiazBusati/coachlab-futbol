@@ -22,6 +22,32 @@ export interface FdEquipo {
 }
 
 /**
+ * Jugador tal como lo devuelve `GET /teams/{id}` (campo `squad`).
+ * `position` sigue el vocabulario inglés de football-data.org:
+ *   'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker' | null
+ */
+export interface FdJugadorSquad {
+  id: number;
+  name: string;
+  position: string | null;
+  dateOfBirth?: string;   // ISO date: "2001-09-05"
+  nationality?: string;
+  shirtNumber?: number | null;
+}
+
+/** Partido tal como lo devuelve `GET /teams/{id}/matches`. */
+export interface FdMatch {
+  id: number;
+  utcDate: string;   // ISO datetime: "2024-03-15T15:00:00Z"
+  status: string;    // 'FINISHED' | 'SCHEDULED' | ...
+  homeTeam: { id: number; name: string; shortName?: string };
+  awayTeam: { id: number; name: string; shortName?: string };
+  score: {
+    fullTime: { home: number | null; away: number | null };
+  };
+}
+
+/**
  * Servicio para consumir la API v4 de football-data.org.
  *
  * URL base por prioridad:
@@ -142,6 +168,59 @@ export class FootballDataService {
       .pipe(
         timeout(this.REQUEST_TIMEOUT),
         map((r) => r.teams ?? []),
+        catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
+      );
+  }
+
+  /**
+   * Devuelve la plantilla (squad) de un equipo por su ID numérico de FD.
+   * Endpoint: `GET /teams/{id}`  →  campo `squad`.
+   */
+  listarPlantillaEquipo(fdTeamId: number): Observable<FdJugadorSquad[]> {
+    const key = this.getApiKey();
+    if (!key) return throwError(() => new Error(
+      'La API key no está disponible. ' +
+      'Verifica que fdApiKey está configurada en environment.ts.',
+    ));
+
+    return this.http
+      .get<{ squad: FdJugadorSquad[] }>(
+        `${this.apiBase}/teams/${fdTeamId}`,
+        { headers: { 'X-Auth-Token': key } },
+      )
+      .pipe(
+        timeout(this.REQUEST_TIMEOUT),
+        map((r) => r.squad ?? []),
+        catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
+      );
+  }
+
+  /**
+   * Devuelve los últimos partidos finalizados de un equipo.
+   * Endpoint: `GET /teams/{id}/matches?status=FINISHED&limit={limite}`
+   * Los resultados vienen ordenados más-reciente-primero desde la API.
+   */
+  listarPartidosEquipo(
+    fdTeamId: number,
+    limite = 10,
+  ): Observable<FdMatch[]> {
+    const key = this.getApiKey();
+    if (!key) return throwError(() => new Error(
+      'La API key no está disponible. ' +
+      'Verifica que fdApiKey está configurada en environment.ts.',
+    ));
+
+    return this.http
+      .get<{ matches: FdMatch[] }>(
+        `${this.apiBase}/teams/${fdTeamId}/matches`,
+        {
+          headers: { 'X-Auth-Token': key },
+          params: { status: 'FINISHED', limit: String(limite) },
+        },
+      )
+      .pipe(
+        timeout(this.REQUEST_TIMEOUT),
+        map((r) => r.matches ?? []),
         catchError((err) => throwError(() => new Error(this.mensajeError(err)))),
       );
   }

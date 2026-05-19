@@ -133,6 +133,44 @@ export class JugadorService {
     return of(jugadorActualizado).pipe(delay(200));
   }
 
+  /**
+   * Reemplaza la plantilla completa de un equipo de forma atómica.
+   * Pensado para importaciones masivas desde la API — mucho más eficiente
+   * que llamar a `crear()` N veces porque sólo escribe localStorage una vez.
+   *
+   * Los jugadores previos se descartan: llama a `limpiarPlantilla()` antes si
+   * quieres preservarlos.
+   */
+  importarPlantilla(
+    equipoId: number,
+    jugadores: CrearJugadorPayload[],
+  ): PlantillaJugador[] {
+    const data = { ...this.jugadoresSubject.value };
+    let id = 0;
+    const nuevos: PlantillaJugador[] = jugadores.map((payload) => ({
+      jugadorId: ++id,
+      nombre: payload.nombre,
+      apellidos: payload.apellidos,
+      dorsal: payload.dorsal,
+      posicion: payload.posicion,
+      edad: payload.edad,
+      goles: 0,
+      asistencias: 0,
+      minutos: 0,
+      tarjetasAmarillas: 0,
+      tarjetasRojas: 0,
+      impacto: 0,
+      paradasLimpias:  payload.posicion === 'Portero' ? 0 : undefined,
+      golesEncajados:  payload.posicion === 'Portero' ? 0 : undefined,
+      penaltisParados: payload.posicion === 'Portero' ? 0 : undefined,
+      partidosTitular: payload.posicion !== 'Portero' ? 0 : undefined,
+    }));
+    data[equipoId] = nuevos;
+    this.jugadoresSubject.next(data);
+    this.saveToStorage(data);
+    return nuevos;
+  }
+
   eliminar(equipoId: number, jugadorId: number): Observable<void> {
     const data = this.jugadoresSubject.value;
     if (data[equipoId]) {
