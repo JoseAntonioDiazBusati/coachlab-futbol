@@ -229,13 +229,34 @@ export class PrepartidoPageComponent implements OnInit {
   }
 
   // ── Bulk actions ─────────────────────────────────
+  /**
+   * Rellena los huecos vacíos del campo seleccionando el mejor jugador disponible
+   * por IRE (`impacto`) para cada posición.
+   *
+   * Algoritmo de dos pasadas:
+   *  1ª pasada – cada slot vacío recibe el jugador con mayor IRE que encaja en
+   *              su posición preferida (según POS_MAP).
+   *  2ª pasada – los slots que siguen vacíos reciben el mejor jugador restante
+   *              independientemente de posición (fallback).
+   */
   autoCompletar(): void {
-    const disponibles = [...this.banco];
+    // Sort bank by IRE descending so `findIndex` always returns the best match first.
+    const disponibles = [...this.banco].sort((a, b) => b.impacto - a.impacto);
+
+    // 1ª pasada: position-matched, best-IRE first
+    for (const slot of this.slots) {
+      if (slot.jugador) continue;
+      const prefs = POS_MAP[slot.etiqueta] ?? [];
+      const idx = disponibles.findIndex(j => prefs.includes(j.posicion));
+      if (idx >= 0) {
+        slot.jugador = disponibles.splice(idx, 1)[0];
+      }
+    }
+
+    // 2ª pasada: fill remaining empty slots with best available (any position)
     for (const slot of this.slots) {
       if (!slot.jugador && disponibles.length > 0) {
-        const prefs = POS_MAP[slot.etiqueta] ?? [];
-        const idx = disponibles.findIndex(j => prefs.includes(j.posicion));
-        slot.jugador = idx >= 0 ? disponibles.splice(idx, 1)[0] : disponibles.shift()!;
+        slot.jugador = disponibles.shift()!;
       }
     }
   }
@@ -249,7 +270,9 @@ export class PrepartidoPageComponent implements OnInit {
   getUltimos5(j: PlantillaJugador): number[] {
     return Array.from({ length: 5 }, (_, i) => {
       const seed = (j.jugadorId * 31 * (i + 1) + j.goles * 17 + j.minutos * 3) % 60 - 30;
-      const base = Math.min(j.impacto * 2.8, 7.5);
+      // IRE is a total-season index (0 = no stats, ~30 = solid contributor, 100+ = elite).
+      // Normalize to 0–7.5 for the form base: divide by 10 so IRE 75 → 7.5 (max).
+      const base = Math.min(j.impacto / 10, 7.5);
       return Math.round(Math.max(3, Math.min(10, base + seed / 30)));
     });
   }

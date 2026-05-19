@@ -6,29 +6,47 @@ import { catchError, finalize, switchMap, takeUntil } from 'rxjs/operators';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
-import { JugadorService } from '../../services/jugador.service';
+import { JugadorService, CrearJugadorPayload } from '../../services/jugador.service';
 import { PartidoService, PartidoImportado } from '../../services/partido.service';
 import {
   FootballDataService,
   FdCompeticion,
   FdEquipo,
+  FdGoleador,
   FdJugadorSquad,
   FdMatch,
 } from '../../services/football-data.service';
+import { getCurrentSeason, getCurrentSeasonYear } from '../../utils/temporada.utils';
 
 // ── Pure helpers (no component state needed) ─────────────────────────────────
 
 /**
  * Mapea la posición en inglés de football-data.org al vocabulario español
  * que usa `JugadorService` para validar posiciones.
+ *
+ * La API devuelve valores exactos ('Goalkeeper', 'Defender', 'Midfielder',
+ * 'Attacker') pero también puede enviar `null` para jugadores sin posición
+ * registrada.  El switch-case exacto más keyword fallback cubre ambos casos.
  */
 function mapFdPosicion(position: string | null | undefined): string {
+  if (!position) return 'Centrocampista';
   switch (position) {
     case 'Goalkeeper': return 'Portero';
     case 'Defender':   return 'Defensa';
     case 'Midfielder': return 'Centrocampista';
     case 'Attacker':   return 'Delantero';
-    default:           return 'Centrocampista';
+    default: {
+      // Keyword fallback for unexpected / future API values.
+      const p = position.toLowerCase();
+      if (p.includes('goal') || p.includes('keeper') || p.includes('portero'))
+        return 'Portero';
+      if (p.includes('defend') || p.includes('back') || p.includes('defens'))
+        return 'Defensa';
+      if (p.includes('attack') || p.includes('forward') || p.includes('winger') ||
+          p.includes('striker') || p.includes('delan'))
+        return 'Delantero';
+      return 'Centrocampista';
+    }
   }
 }
 
@@ -278,33 +296,50 @@ export class LigaPageComponent implements OnInit, OnDestroy {
       .crear({
         nombre:    fd.name,
         categoria: comp?.name,
-        temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+        temporada: getCurrentSeason(),
         ciudad:    fd.area?.name,
       })
       .pipe(
         switchMap((equipo) =>
           forkJoin({
             equipo: of(equipo),
-            // Squad and match calls are non-blocking: a failure here must
+            // Squad, match and scorer calls are non-blocking: a failure here must
             // NOT roll back the team that was already created.
             plantilla: this.fdService.listarPlantillaEquipo(fd.id).pipe(
               catchError(() => of([] as FdJugadorSquad[])),
             ),
-            partidos: this.fdService.listarPartidosEquipo(fd.id).pipe(
-              catchError(() => of([] as FdMatch[])),
-            ),
+            partidos: this.fdService
+              .listarPartidosEquipo(fd.id, 10, comp?.id)
+              .pipe(
+                catchError(() => of([] as FdMatch[])),
+              ),
+            goleadores: comp
+              ? this.fdService
+                  .listarGoleadores(comp.code, getCurrentSeasonYear())
+                  .pipe(catchError(() => of([] as FdGoleador[])))
+              : of([] as FdGoleador[]),
           }),
         ),
         takeUntil(this.cancelApi$),
         finalize(() => { this.guardando = false; }),
       )
       .subscribe({
-        next: ({ equipo, plantilla, partidos }) => {
+        next: ({ equipo, plantilla, partidos, goleadores }) => {
+          // ── Build scorer lookup: playerId → { goles, asistencias, partidosTitular } ──
+          const statsMap = new Map<number, { goles: number; asistencias: number; partidosTitular: number }>();
+          for (const g of goleadores) {
+            statsMap.set(g.player.id, {
+              goles:           g.goals,
+              asistencias:     g.assists        ?? 0,
+              partidosTitular: g.playedMatches,
+            });
+          }
+
           // ── Persist squad ────────────────────────────────────────────
           if (plantilla.length > 0) {
-            this.jugadorService.importarPlantilla(
-              equipo.id,
-              plantilla.map((j) => ({
+            const payloads: CrearJugadorPayload[] = plantilla.map((j) => {
+              const stats = statsMap.get(j.id);
+              return {
                 nombre:   j.name,
                 posicion: mapFdPosicion(j.position),
                 dorsal:   j.shirtNumber ?? undefined,
@@ -312,8 +347,12 @@ export class LigaPageComponent implements OnInit, OnDestroy {
                   ? new Date().getFullYear() -
                     new Date(j.dateOfBirth).getFullYear()
                   : undefined,
-              })),
-            );
+                goles:           stats?.goles           ?? 0,
+                asistencias:     stats?.asistencias     ?? 0,
+                partidosTitular: stats?.partidosTitular ?? 0,
+              };
+            });
+            this.jugadorService.importarPlantilla(equipo.id, payloads);
           }
 
           // ── Persist matches (most-recent-first from the API) ─────────
@@ -384,7 +423,7 @@ export class LigaPageComponent implements OnInit, OnDestroy {
     return {
       nombre: '',
       categoria: '',
-      temporada: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+      temporada: getCurrentSeason(),
       ciudad: '',
     };
   }

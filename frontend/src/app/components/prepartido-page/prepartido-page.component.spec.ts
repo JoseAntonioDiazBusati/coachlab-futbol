@@ -169,6 +169,112 @@ describe('PrepartidoPageComponent', () => {
     });
   });
 
+  // ── autoCompletar() ──────────────────────────────────────────────────────
+  describe('autoCompletar()', () => {
+    /** Build a minimal PlantillaJugador with a specific position and IRE. */
+    function makeJ(id: number, posicion: string, ire: number): PlantillaJugador {
+      return {
+        jugadorId: id, nombre: `P${id}`, posicion,
+        goles: 0, asistencias: 0, minutos: 0,
+        tarjetasAmarillas: 0, tarjetasRojas: 0, impacto: ire,
+      };
+    }
+
+    /** Standard 11-player squad matching a 4-3-3 formation. */
+    function makeSquad4x3x3(): PlantillaJugador[] {
+      return [
+        makeJ(1, 'Portero', 5),
+        makeJ(2, 'Defensa', 4), makeJ(3, 'Defensa', 6),
+        makeJ(4, 'Defensa', 2), makeJ(5, 'Defensa', 8),  // best defender IRE=8
+        makeJ(6, 'Centrocampista', 5), makeJ(7, 'Centrocampista', 7), makeJ(8, 'Centrocampista', 3),
+        makeJ(9, 'Delantero', 10), makeJ(10, 'Delantero', 6), makeJ(11, 'Delantero', 4),
+      ];
+    }
+
+    it('fills all 11 slots when a complete squad is available', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = makeSquad4x3x3();
+      comp.inicializarSlots();
+      comp.autoCompletar();
+      expect(comp.totalEnCampo).toBe(11);
+    });
+
+    it('places the portero in the PT slot', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = makeSquad4x3x3();
+      comp.inicializarSlots();
+      comp.autoCompletar();
+      const pt = comp.slots.find(s => s.etiqueta === 'PT');
+      expect(pt?.jugador?.posicion).toBe('Portero');
+    });
+
+    it('assigns the highest-IRE defender to the first defensa slot processed', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = makeSquad4x3x3();   // best defender has IRE=8 (id=5)
+      comp.inicializarSlots();
+      comp.autoCompletar();
+      const defSlots = comp.slots.filter(s => ['DC', 'LD', 'LI'].includes(s.etiqueta));
+      const ires = defSlots.map(s => s.jugador?.impacto ?? -1);
+      // The best defender (IRE=8) must be somewhere in the lineup
+      expect(ires).toContain(8);
+    });
+
+    it('assigns the highest-IRE delantero to the first delantero slot', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = makeSquad4x3x3();   // best delantero has IRE=10 (id=9)
+      comp.inicializarSlots();
+      comp.autoCompletar();
+      const delSlots = comp.slots.filter(s => s.etiqueta === 'DEL' || s.etiqueta === 'EX');
+      const ires = delSlots.map(s => s.jugador?.impacto ?? -1);
+      expect(ires).toContain(10);
+    });
+
+    it('does not assign a portero to a campo slot when campo players are available', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      // Portero has very high IRE — must NOT occupy a campo slot
+      comp.jugadores = [
+        makeJ(1, 'Portero', 100),
+        makeJ(2, 'Defensa', 1), makeJ(3, 'Defensa', 1),
+        makeJ(4, 'Defensa', 1), makeJ(5, 'Defensa', 1),
+        makeJ(6, 'Centrocampista', 1), makeJ(7, 'Centrocampista', 1), makeJ(8, 'Centrocampista', 1),
+        makeJ(9, 'Delantero', 1), makeJ(10, 'Delantero', 1), makeJ(11, 'Delantero', 1),
+      ];
+      comp.inicializarSlots();
+      comp.autoCompletar();
+      const campoSlots = comp.slots.filter(s => s.etiqueta !== 'PT');
+      expect(campoSlots.some(s => s.jugador?.posicion === 'Portero')).toBe(false);
+    });
+
+    it('does not touch already-occupied slots', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = makeSquad4x3x3();
+      comp.inicializarSlots();
+      const pre = makeJ(99, 'Portero', 0);
+      comp.slots[0].jugador = pre;  // manually occupy PT slot
+      comp.autoCompletar();
+      // Slot 0 should still have the pre-placed player
+      expect(comp.slots[0].jugador?.jugadorId).toBe(99);
+    });
+
+    it('fills partial slots when fewer than 11 players are available', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = [makeJ(1, 'Portero', 0), makeJ(2, 'Defensa', 0)];
+      comp.inicializarSlots();
+      comp.autoCompletar();
+      expect(comp.totalEnCampo).toBe(2);
+    });
+
+    it('does nothing when banco is empty', () => {
+      const comp = TestBed.createComponent(PrepartidoPageComponent).componentInstance;
+      comp.jugadores = makeSquad4x3x3();
+      comp.inicializarSlots();
+      comp.slots.forEach((s, i) => { s.jugador = comp.jugadores[i]; });
+      comp.autoCompletar();
+      // All 11 still occupied
+      expect(comp.totalEnCampo).toBe(11);
+    });
+  });
+
   // ── Error state after failed load ────────────────────────────────────────
   describe('error state', () => {
     it('sets error and stops loading when cargarEquipo() service throws', () => {

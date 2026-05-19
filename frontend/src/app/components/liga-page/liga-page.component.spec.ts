@@ -12,6 +12,7 @@ import {
   FootballDataService,
   FdCompeticion,
   FdEquipo,
+  FdGoleador,
   FdJugadorSquad,
   FdMatch,
 } from '../../services/football-data.service';
@@ -51,9 +52,19 @@ const MATCH_MOCK: FdMatch = {
   id: 1001,
   utcDate: '2024-03-15T15:00:00Z',
   status: 'FINISHED',
+  competition: { id: 2021, code: 'PL', name: 'Premier League' },
   homeTeam: { id: 57, name: 'Arsenal FC',   shortName: 'Arsenal'   },
   awayTeam: { id: 64, name: 'Liverpool FC', shortName: 'Liverpool' },
   score: { fullTime: { home: 2, away: 1 } },
+};
+
+const GOLEADOR_MOCK: FdGoleador = {
+  player: { id: 1, name: 'Bukayo Saka', position: 'Attacker', shirtNumber: 7 },
+  team: { id: 57, name: 'Arsenal FC' },
+  playedMatches: 10,
+  goals: 5,
+  assists: 3,
+  penalties: 1,
 };
 
 function stubEquipos(): void {
@@ -72,9 +83,10 @@ function stubListarCompeticiones(comps: FdCompeticion[] = []): void {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function stubConfirmar(overrides: {
-  crear?:    Observable<any>;
-  plantilla?: Observable<any>;
-  partidos?:  Observable<any>;
+  crear?:      Observable<any>;
+  plantilla?:  Observable<any>;
+  partidos?:   Observable<any>;
+  goleadores?: Observable<any>;
 } = {}): void {
   vi.spyOn(TestBed.inject(EquipoService), 'crear')
     .mockReturnValue(overrides.crear ?? of(EQUIPO_CREADO_MOCK));
@@ -82,6 +94,8 @@ function stubConfirmar(overrides: {
     .mockReturnValue(overrides.plantilla ?? of(SQUAD_MOCK));
   vi.spyOn(TestBed.inject(FootballDataService), 'listarPartidosEquipo')
     .mockReturnValue(overrides.partidos ?? of([MATCH_MOCK]));
+  vi.spyOn(TestBed.inject(FootballDataService), 'listarGoleadores')
+    .mockReturnValue(overrides.goleadores ?? of([GOLEADOR_MOCK]));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -512,6 +526,169 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       expect(guardarSpy).not.toHaveBeenCalled();
+    });
+
+    it('passes competicion id to listarPartidosEquipo to filter by league', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar();
+      const partidosSpy = vi.spyOn(TestBed.inject(FootballDataService), 'listarPartidosEquipo')
+        .mockReturnValue(of([MATCH_MOCK]));
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;   // id = 2021
+
+      comp.confirmarEquipoApi();
+
+      // Third argument must be the competition id
+      expect(partidosSpy).toHaveBeenCalledWith(FD_EQUIPO_MOCK.id, 10, COMP_MOCK.id);
+    });
+
+    it('merges scorer stats into squad payloads when goleadores are available', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({ goleadores: of([GOLEADOR_MOCK]) });
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      const jugadores = importSpy.mock.calls[0][1];
+      // GOLEADOR_MOCK maps player.id=1 (Bukayo Saka) → goals=5, assists=3
+      const saka = jugadores.find((j: { nombre: string }) => j.nombre === 'Bukayo Saka');
+      expect(saka).toBeDefined();
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      expect(saka!.goles).toBe(5);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      expect(saka!.asistencias).toBe(3);
+      // GOLEADOR_MOCK.playedMatches = 10 → partidosTitular should be 10
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      expect(saka!.partidosTitular).toBe(10);
+    });
+
+    it('still succeeds and closes panel when goleadores API fails', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({
+        goleadores: throwError(() => new Error('429: rate limit')),
+      });
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      expect(comp.panelAbierto).toBe('ninguno');
+      expect(comp.guardando).toBe(false);
+      expect(comp.error).toBeNull();
+    });
+
+    it('sets goles and asistencias to 0 for players not in scorers list', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      // goleadores list is empty → no stats for any player
+      stubConfirmar({ goleadores: of([]) });
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      const jugadores = importSpy.mock.calls[0][1];
+      for (const j of jugadores) {
+        expect(j.goles).toBe(0);
+        expect(j.asistencias).toBe(0);
+      }
+    });
+  });
+
+  // ── season calculation ────────────────────────────────────────────────────
+  describe('season calculation', () => {
+    it('confirmarEquipoApi() uses getCurrentSeason() — not raw year+1', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar();
+      const crearSpy = vi.spyOn(TestBed.inject(EquipoService), 'crear')
+        .mockReturnValue(of(EQUIPO_CREADO_MOCK));
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+
+      comp.confirmarEquipoApi();
+
+      const payload = crearSpy.mock.calls[0][0];
+      // Must match "YYYY/YYYY" format and be a valid football season
+      expect(payload.temporada).toMatch(/^\d{4}\/\d{4}$/);
+      const [start, end] = payload.temporada!.split('/').map(Number);
+      expect(end - start).toBe(1);
+    });
+  });
+
+  // ── mapFdPosicion (position mapping) ─────────────────────────────────────
+  describe('position mapping via importarPlantilla', () => {
+    function buildSquad(positions: (string | null)[]): FdJugadorSquad[] {
+      return positions.map((pos, i) => ({
+        id: i + 1,
+        name: `Player ${i + 1}`,
+        position: pos,
+        shirtNumber: i + 1,
+      }));
+    }
+
+    it('maps all four standard API positions correctly', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      const squad = buildSquad(['Goalkeeper', 'Defender', 'Midfielder', 'Attacker']);
+      stubConfirmar({ plantilla: of(squad), goleadores: of([]) });
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.confirmarEquipoApi();
+
+      const posiciones = importSpy.mock.calls[0][1].map((j: { posicion: string }) => j.posicion);
+      expect(posiciones).toEqual(['Portero', 'Defensa', 'Centrocampista', 'Delantero']);
+    });
+
+    it('maps null position to Centrocampista (fallback)', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      stubConfirmar({ plantilla: of(buildSquad([null])), goleadores: of([]) });
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.confirmarEquipoApi();
+
+      expect(importSpy.mock.calls[0][1][0].posicion).toBe('Centrocampista');
+    });
+
+    it('maps unexpected keyword values via fallback logic', () => {
+      stubEquipos();
+      stubListarCompeticiones();
+      const squad = buildSquad(['Centre-Back', 'Centre-Forward', 'Left Winger']);
+      stubConfirmar({ plantilla: of(squad), goleadores: of([]) });
+      const importSpy = vi.spyOn(TestBed.inject(JugadorService), 'importarPlantilla');
+
+      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
+      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
+      comp.competicionSeleccionada = COMP_MOCK;
+      comp.confirmarEquipoApi();
+
+      const posiciones = importSpy.mock.calls[0][1].map((j: { posicion: string }) => j.posicion);
+      expect(posiciones[0]).toBe('Defensa');    // 'Centre-Back' → back → Defensa
+      expect(posiciones[1]).toBe('Delantero');  // 'Centre-Forward' → forward → Delantero
+      expect(posiciones[2]).toBe('Delantero');  // 'Left Winger' → winger → Delantero
     });
   });
 
