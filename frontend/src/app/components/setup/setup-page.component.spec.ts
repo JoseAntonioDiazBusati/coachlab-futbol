@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { vi } from 'vitest';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { SetupPageComponent } from './setup-page.component';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { EquipoService, Equipo } from '../../services/equipo.service';
@@ -66,12 +67,21 @@ describe('SetupPageComponent', () => {
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideHttpClientTesting(),
         EquipoService,
         EquipoActivoService,
         FootballDataService,
         JugadorService,
       ],
     }).compileComponents();
+  });
+
+  afterEach(() => {
+    // Drain fire-and-forget HTTP calls from JugadorService.criar/eliminar
+    const httpMock = TestBed.inject(HttpTestingController);
+    httpMock.match(() => true).forEach((req) => req.flush({}));
+    httpMock.verify();
+    localStorage.clear();
   });
 
   // ── Smoke & initial state ───────────────────────────────────────────────
@@ -86,10 +96,23 @@ describe('SetupPageComponent', () => {
   });
 
   // ── Method selection ────────────────────────────────────────────────────
-  it('should navigate to api-key step when elegirMetodo("api") is called', () => {
+  it('should navigate to api-ligas step when elegirMetodo("api") resolves competiciones', () => {
     const fixture = TestBed.createComponent(SetupPageComponent);
+    const fdSvc = TestBed.inject(FootballDataService);
+    vi.spyOn(fdSvc, 'listarCompeticiones').mockReturnValue(of([]));
     fixture.componentInstance.elegirMetodo('api');
-    expect(fixture.componentInstance.paso).toBe('api-key');
+    expect(fixture.componentInstance.paso).toBe('api-ligas');
+  });
+
+  it('should show error and stay on metodo when elegirMetodo("api") fails', () => {
+    const fixture = TestBed.createComponent(SetupPageComponent);
+    const fdSvc = TestBed.inject(FootballDataService);
+    vi.spyOn(fdSvc, 'listarCompeticiones').mockReturnValue(
+      throwError(() => new Error('Sin conexión')),
+    );
+    fixture.componentInstance.elegirMetodo('api');
+    expect(fixture.componentInstance.paso).toBe('metodo');
+    expect(fixture.componentInstance.error).toBeTruthy();
   });
 
   it('should navigate to manual step when elegirMetodo("manual") is called', () => {
@@ -99,9 +122,9 @@ describe('SetupPageComponent', () => {
   });
 
   // ── volver() navigation ─────────────────────────────────────────────────
-  it('should return to metodo step when volver() is called from api-key', () => {
+  it('should return to metodo step when volver() is called from api-ligas', () => {
     const fixture = TestBed.createComponent(SetupPageComponent);
-    fixture.componentInstance.paso = 'api-key';
+    fixture.componentInstance.paso = 'api-ligas';
     fixture.componentInstance.volver();
     expect(fixture.componentInstance.paso).toBe('metodo');
   });
@@ -114,13 +137,6 @@ describe('SetupPageComponent', () => {
   });
 
   // ── Validation errors ───────────────────────────────────────────────────
-  it('should set error when cargarCompeticiones() called with empty apiKey', () => {
-    const fixture = TestBed.createComponent(SetupPageComponent);
-    fixture.componentInstance.apiKey = '';
-    fixture.componentInstance.cargarCompeticiones();
-    expect(fixture.componentInstance.error).toBeTruthy();
-  });
-
   it('should set error when crearEquipoManual() called with empty nombre', () => {
     const fixture = TestBed.createComponent(SetupPageComponent);
     fixture.componentInstance.equipoManual.nombre = '';
