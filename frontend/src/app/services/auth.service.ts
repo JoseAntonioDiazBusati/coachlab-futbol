@@ -1,117 +1,85 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
 
-interface AuthUser {
-  name: string;
+interface AuthResponse {
+  token: string;
+  email: string;
+  nombre: string;
+}
+
+interface LoginRequest {
   email: string;
   password: string;
 }
 
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  private readonly usersKey = 'coachlab_users';
-  private readonly sessionKey = 'coachlab_session';
-  private readonly defaultUser: AuthUser = {
-    name: 'Usuario Demo',
-    email: 'demo@coachlab.test',
-    password: 'coachlab123',
-  };
-
-  constructor() {
-    this.ensureSeedUser();
-  }
-
-  isAuthenticated() {
-    return this.readSession() !== null;
-  }
-
-  getDefaultUser() {
-    return { email: this.defaultUser.email, password: this.defaultUser.password };
-  }
-
-  login(email: string, password: string) {
-    const user = this.getUsers().find((item) => item.email === email && item.password === password);
-    if (!user) {
-      return false;
-    }
-    this.writeSession(user.email);
-    return true;
-  }
-
-  register(name: string, email: string, password: string) {
-    const users = this.getUsers();
-    if (users.some((item) => item.email === email)) {
-      return false;
-    }
-    users.push({ name, email, password });
-    this.writeUsers(users);
-    this.writeSession(email);
-    return true;
-  }
-
-  logout() {
-    this.clearSession();
-  }
-
-  private ensureSeedUser() {
-    const users = this.getUsers();
-    if (!users.length) {
-      this.writeUsers([this.defaultUser]);
-      return;
-    }
-    if (!users.some((item) => item.email === this.defaultUser.email)) {
-      users.push(this.defaultUser);
-      this.writeUsers(users);
-    }
-  }
-
-  private getUsers(): AuthUser[] {
-    const raw = this.safeStorageGet(this.usersKey);
-    if (!raw) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(raw) as AuthUser[];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private writeUsers(users: AuthUser[]) {
-    this.safeStorageSet(this.usersKey, JSON.stringify(users));
-  }
-
-  private readSession() {
-    return this.safeStorageGet(this.sessionKey);
-  }
-
-  private writeSession(email: string) {
-    this.safeStorageSet(this.sessionKey, email);
-  }
-
-  private clearSession() {
-    this.safeStorageRemove(this.sessionKey);
-  }
-
-  private safeStorageGet(key: string) {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-    return window.localStorage.getItem(key);
-  }
-
-  private safeStorageSet(key: string, value: string) {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(key, value);
-  }
-
-  private safeStorageRemove(key: string) {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.removeItem(key);
-  }
+interface RegisterRequest {
+  nombre: string;
+  email: string;
+  password: string;
 }
 
+const JWT_KEY = 'coachlab_jwt';
+
+/**
+ * Servicio de autenticación HTTP.
+ *
+ * Almacena el JWT en localStorage (`coachlab_jwt`).
+ * El token se adjunta automáticamente a cada petición autenticada
+ * mediante `authInterceptor`.
+ *
+ * Credenciales demo: demo@coachlab.test / coachlab123
+ * (creadas por el DataLoader del backend al arrancar).
+ */
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${environment.apiBase}/auth`;
+
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
+
+  getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(JWT_KEY);
+  }
+
+  /** Credenciales del usuario demo para pre-rellenar el login en dev. */
+  getDefaultUser(): { email: string; password: string } {
+    return { email: 'demo@coachlab.test', password: 'coachlab123' };
+  }
+
+  /**
+   * Autentica al usuario contra el backend.
+   * Devuelve un Observable que, al completar, almacena el JWT.
+   */
+  login(email: string, password: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${this.base}/login`, { email, password } as LoginRequest)
+      .pipe(tap((res) => this.saveToken(res.token)));
+  }
+
+  /**
+   * Registra un nuevo usuario y autentica automáticamente.
+   * Devuelve un Observable que, al completar, almacena el JWT.
+   */
+  register(nombre: string, email: string, password: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${this.base}/register`, { nombre, email, password } as RegisterRequest)
+      .pipe(tap((res) => this.saveToken(res.token)));
+  }
+
+  logout(): void {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(JWT_KEY);
+    }
+  }
+
+  private saveToken(token: string): void {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(JWT_KEY, token);
+    }
+  }
+}
