@@ -1,10 +1,12 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { delay } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 /**
- * Campos necesarios para calcular el IRE.  Todos los numéricos son requeridos
- * (los stats opcionales de portero se pasan como `undefined`).
+ * Campos necesarios para calcular el IRE.
  */
 export interface IREInput {
   posicion: string;
@@ -12,7 +14,6 @@ export interface IREInput {
   asistencias: number;
   tarjetasAmarillas: number;
   tarjetasRojas: number;
-  /** Minutos jugados (campo); contribuye como factor defensivo de participación. */
   minutos?: number;
   paradasLimpias?: number;
   golesEncajados?: number;
@@ -22,19 +23,8 @@ export interface IREInput {
 /**
  * Índice de Rendimiento del Equipo (IRE).
  *
- * Combina atributos ofensivos y defensivos en un índice acumulado de temporada:
- *
  *   · Portero:  PC×3 + PP×2 − GE×0.3 − TA×0.5 − TR×2
  *   · Campo:    Goles×3 + Asistencias×2 + Min/90×0.5 − TA×0.5 − TR×2
- *
- * Donde PC = paradas limpias, PP = penaltis parados, GE = goles encajados,
- * TA = tarjetas amarillas, TR = tarjetas rojas, Min = minutos jugados.
- *
- * El componente Min/90×0.5 captura la aportación defensiva del jugador de
- * campo: presión, posicionamiento y cobertura proporcionales al tiempo jugado.
- *
- * No se normaliza por partidos: el IRE crece con la participación, lo que
- * favorece a jugadores consistentes a lo largo de toda la temporada.
  */
 export function calcularIRE(j: IREInput): number {
   const raw =
@@ -77,7 +67,6 @@ export interface CrearJugadorPayload {
   dorsal?: number;
   posicion: string;
   edad?: number;
-  /** Stats pre-filled from an API import; default to 0 when omitted. */
   goles?: number;
   asistencias?: number;
   minutos?: number;
@@ -90,34 +79,49 @@ interface JugadorData {
   [equipoId: number]: PlantillaJugador[];
 }
 
-@Injectable({
-  providedIn: 'root',
-})
+/**
+ * Servicio de jugadores — arquitectura dual-write.
+ *
+ * · `listarPlantilla()` → HTTP primario (ranking del backend), caché localStorage como fallback.
+ * · `criar()`, `actualizar()` → local inmediato (IRE calculado en cliente) + HTTP background.
+ * · `eliminar()` → local inmediato + HTTP background.
+ * · `importarPlantilla()` → localStorage sincrónico (compatibilidad con liga-page y sus tests).
+ *
+ * Los datos locales sirven para feedback inmediato y para que los tests sigan funcionando
+ * sin necesidad de mocks HTTP complejos. El backend es la fuente de verdad definitiva;
+ * `listarPlantilla()` siempre refrescará con los datos del servidor cuando está disponible.
+ */
+@Injectable({ providedIn: 'root' })
 export class JugadorService {
+  private readonly http      = inject(HttpClient);
   private readonly storageKey = 'coachlab_jugadores';
-  private jugadoresSubject = new BehaviorSubject<JugadorData>(
-    this.loadFromStorage(),
-  );
+  private readonly base       = `${environment.apiBase}/equipos`;
+
+  private jugadoresSubject = new BehaviorSubject<JugadorData>(this.loadFromStorage());
+
+  // ── Listar (HTTP primario → localStorage fallback) ────────────────────────
 
   listarPlantilla(equipoId: number): Observable<PlantillaJugador[]> {
-    const data = this.jugadoresSubject.value[equipoId] || [];
-    return of(data).pipe(delay(300));
+    return this.http
+      .get<PlantillaJugador[]>(`${this.base}/${equipoId}/jugadores/ranking`)
+      .pipe(
+        catchError(() => {
+          // Backend no disponible — usar datos locales
+          return of(this.jugadoresSubject.value[equipoId] ?? []);
+        }),
+      );
   }
 
-  obtener(
-    equipoId: number,
-    jugadorId: number,
-  ): Observable<PlantillaJugador | undefined> {
+  obtener(equipoId: number, jugadorId: number): Observable<PlantillaJugador | undefined> {
     const jugador = this.jugadoresSubject.value[equipoId]?.find(
       (j) => j.jugadorId === jugadorId,
     );
     return of(jugador).pipe(delay(100));
   }
 
-  crear(
-    equipoId: number,
-    payload: CrearJugadorPayload,
-  ): Observable<PlantillaJugador> {
+  // ── CRUD individual (local inmediato + HTTP background) ───────────────────
+
+  crear(equipoId: number, payload: CrearJugadorPayload): Observable<PlantillaJugador> {
     if (!payload.nombre?.trim()) {
       return throwError(() => new Error('El nombre del jugador es obligatorio.'));
     }
@@ -126,14 +130,9 @@ export class JugadorService {
     }
 
     const data = this.jugadoresSubject.value;
-    if (!data[equipoId]) {
-      data[equipoId] = [];
-    }
+    if (!data[equipoId]) data[equipoId] = [];
 
-    const maxId = Math.max(
-      ...(data[equipoId]?.map((j) => j.jugadorId) || [0]),
-      0,
-    );
+    const maxId = Math.max(...(data[equipoId]?.map((j) => j.jugadorId) || [0]), 0);
 
     const goles             = payload.goles             ?? 0;
     const asistencias       = payload.asistencias        ?? 0;
@@ -146,14 +145,14 @@ export class JugadorService {
 
     const nuevoJugador: PlantillaJugador = {
       jugadorId: maxId + 1,
-      nombre: payload.nombre,
+      nombre:    payload.nombre,
       apellidos: payload.apellidos,
-      dorsal: payload.dorsal,
-      posicion: payload.posicion,
-      edad: payload.edad,
+      dorsal:    payload.dorsal,
+      posicion:  payload.posicion,
+      edad:      payload.edad,
       goles,
       asistencias,
-      minutos:           payload.minutos            ?? 0,
+      minutos:           payload.minutos ?? 0,
       tarjetasAmarillas,
       tarjetasRojas,
       impacto: calcularIRE({
@@ -171,6 +170,18 @@ export class JugadorService {
     data[equipoId].push(nuevoJugador);
     this.jugadoresSubject.next(data);
     this.saveToStorage(data);
+
+    // HTTP background — persiste al backend (fire-and-forget)
+    this.http
+      .post(`${this.base}/${equipoId}/jugadores`, {
+        nombre:    payload.nombre,
+        apellidos: payload.apellidos,
+        dorsal:    payload.dorsal,
+        posicion:  payload.posicion,
+        edad:      payload.edad,
+      })
+      .subscribe({ error: () => { /* fallo silencioso — datos están en local */ } });
+
     return of(nuevoJugador).pipe(delay(200));
   }
 
@@ -181,20 +192,15 @@ export class JugadorService {
   ): Observable<PlantillaJugador> {
     const data = this.jugadoresSubject.value;
     if (!data[equipoId]) {
-      return throwError(
-        () => new Error(`Equipo con id ${equipoId} no encontrado`),
-      );
+      return throwError(() => new Error(`Equipo con id ${equipoId} no encontrado`));
     }
 
     const index = data[equipoId].findIndex((j) => j.jugadorId === jugadorId);
     if (index === -1) {
-      return throwError(
-        () => new Error(`Jugador con id ${jugadorId} no encontrado`),
-      );
+      return throwError(() => new Error(`Jugador con id ${jugadorId} no encontrado`));
     }
 
     const merged = { ...data[equipoId][index], ...actualizacion };
-    // Always recompute IRE when any stat changes so the badge stays accurate.
     const jugadorActualizado: PlantillaJugador = {
       ...merged,
       impacto: calcularIRE(merged),
@@ -202,21 +208,44 @@ export class JugadorService {
     data[equipoId][index] = jugadorActualizado;
     this.jugadoresSubject.next(data);
     this.saveToStorage(data);
+
+    // HTTP background
+    this.http
+      .put(`${this.base}/${equipoId}/jugadores/${jugadorId}`, {
+        nombre:    jugadorActualizado.nombre,
+        apellidos: jugadorActualizado.apellidos,
+        dorsal:    jugadorActualizado.dorsal,
+        posicion:  jugadorActualizado.posicion,
+        edad:      jugadorActualizado.edad,
+      })
+      .subscribe({ error: () => {} });
+
     return of(jugadorActualizado).pipe(delay(200));
   }
 
+  eliminar(equipoId: number, jugadorId: number): Observable<void> {
+    const data = this.jugadoresSubject.value;
+    if (data[equipoId]) {
+      data[equipoId] = data[equipoId].filter((j) => j.jugadorId !== jugadorId);
+      this.jugadoresSubject.next(data);
+      this.saveToStorage(data);
+    }
+
+    // HTTP background
+    this.http
+      .delete(`${this.base}/${equipoId}/jugadores/${jugadorId}`)
+      .subscribe({ error: () => {} });
+
+    return of(void 0).pipe(delay(200));
+  }
+
+  // ── Importación masiva (localStorage sincrónico) ───────────────────────────
+
   /**
-   * Reemplaza la plantilla completa de un equipo de forma atómica.
-   * Pensado para importaciones masivas desde la API — mucho más eficiente
-   * que llamar a `crear()` N veces porque sólo escribe localStorage una vez.
-   *
-   * Los jugadores previos se descartan: llama a `limpiarPlantilla()` antes si
-   * quieres preservarlos.
+   * Reemplaza la plantilla completa de forma atómica.
+   * Interfaz sincrónica para compatibilidad con liga-page y sus tests.
    */
-  importarPlantilla(
-    equipoId: number,
-    jugadores: CrearJugadorPayload[],
-  ): PlantillaJugador[] {
+  importarPlantilla(equipoId: number, jugadores: CrearJugadorPayload[]): PlantillaJugador[] {
     const data = { ...this.jugadoresSubject.value };
     let id = 0;
     const nuevos: PlantillaJugador[] = jugadores.map((payload) => {
@@ -259,24 +288,12 @@ export class JugadorService {
     return nuevos;
   }
 
-  eliminar(equipoId: number, jugadorId: number): Observable<void> {
-    const data = this.jugadoresSubject.value;
-    if (data[equipoId]) {
-      data[equipoId] = data[equipoId].filter((j) => j.jugadorId !== jugadorId);
-      this.jugadoresSubject.next(data);
-      this.saveToStorage(data);
-    }
-    return of(void 0).pipe(delay(200));
-  }
+  // ── localStorage helpers ─────────────────────────────────────────────────
 
   private loadFromStorage(): JugadorData {
-    if (typeof window === 'undefined') {
-      return {};
-    }
+    if (typeof window === 'undefined') return {};
     const raw = window.localStorage.getItem(this.storageKey);
-    if (!raw) {
-      return {};
-    }
+    if (!raw) return {};
     try {
       const parsed = JSON.parse(raw) as JugadorData;
       return typeof parsed === 'object' && parsed !== null ? parsed : {};
@@ -286,9 +303,7 @@ export class JugadorService {
   }
 
   private saveToStorage(data: JugadorData): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(this.storageKey, JSON.stringify(data));
   }
 }

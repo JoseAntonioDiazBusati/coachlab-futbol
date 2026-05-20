@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { vi } from 'vitest';
 import { JugadorService, PlantillaJugador, calcularIRE } from './jugador.service';
 
@@ -107,16 +109,27 @@ describe('calcularIRE()', () => {
 
 describe('JugadorService — IRE propagation', () => {
   let service: JugadorService;
+  let httpMock: HttpTestingController;
 
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
     vi.useFakeTimers();   // delay() uses setTimeout; fake timers let us control it
-    TestBed.configureTestingModule({ providers: [JugadorService] });
-    service = TestBed.inject(JugadorService);
+    TestBed.configureTestingModule({
+      providers: [
+        JugadorService,
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    });
+    service  = TestBed.inject(JugadorService);
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
+    // Drain fire-and-forget HTTP calls from criar/actualizar/eliminar
+    httpMock.match(() => true).forEach((req) => req.flush({}));
+    httpMock.verify();
     vi.useRealTimers();
   });
 
