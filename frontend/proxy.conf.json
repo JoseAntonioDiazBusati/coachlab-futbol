@@ -1,9 +1,8 @@
 {
-  "/fd-api": {
-    "target": "https://api.football-data.org",
+  "/api": {
+    "target": "http://localhost:8080",
     "changeOrigin": true,
-    "pathRewrite": { "^/fd-api": "" },
-    "secure": true,
+    "secure": false,
     "logLevel": "warn"
   }
 }
