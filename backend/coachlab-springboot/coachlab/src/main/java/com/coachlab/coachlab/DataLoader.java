@@ -4,31 +4,53 @@ import com.coachlab.coachlab.model.*;
 import com.coachlab.coachlab.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
 /**
  * Carga datos de ejemplo al arrancar la aplicación.
- * Útil para probar la API desde el primer momento.
+ * Sólo ejecuta la carga si la base de datos está vacía (compatible con H2 file y reintentos).
  */
 @Component
 @RequiredArgsConstructor
 public class DataLoader implements CommandLineRunner {
 
-    private final EquipoRepository equipoRepo;
-    private final JugadorRepository jugadorRepo;
-    private final PartidoRepository partidoRepo;
+    private final EquipoRepository    equipoRepo;
+    private final JugadorRepository   jugadorRepo;
+    private final PartidoRepository   partidoRepo;
     private final EstadisticaJugadorRepository estadisticaRepo;
+    private final UsuarioRepository   usuarioRepo;
+    private final PasswordEncoder     passwordEncoder;
 
     @Override
     public void run(String... args) {
+
+        // ── Usuario demo ──────────────────────────────────────
+        if (!usuarioRepo.existsByEmail("demo@coachlab.test")) {
+            usuarioRepo.save(Usuario.builder()
+                    .nombre("Usuario Demo")
+                    .email("demo@coachlab.test")
+                    .password(passwordEncoder.encode("coachlab123"))
+                    .build());
+            System.out.println("👤 Usuario demo creado: demo@coachlab.test / coachlab123");
+        }
+
+        // ── Datos de ejemplo (sólo si la DB está vacía) ───────
+        if (equipoRepo.count() > 0) {
+            System.out.println("\n✅ CoachLab Fútbol arrancado correctamente.");
+            System.out.println("🌐 API disponible en: http://localhost:8080/api");
+            System.out.println("🗄️  Consola H2 en:    http://localhost:8080/h2-console\n");
+            return;
+        }
 
         // ── Equipo ────────────────────────────────────────────
         Equipo equipo = equipoRepo.save(Equipo.builder()
                 .nombre("CD Atlético Coachlab")
                 .categoria("Amateur Senior")
                 .temporada("2024/2025")
+                .ciudad("Madrid")
                 .build());
 
         // ── Jugadores ─────────────────────────────────────────
@@ -96,7 +118,6 @@ public class DataLoader implements CommandLineRunner {
         System.out.println("\n✅ CoachLab Fútbol arrancado correctamente.");
         System.out.println("📊 Datos de ejemplo cargados.");
         System.out.println("🌐 API disponible en: http://localhost:8080/api");
-        System.out.println("🗄️  Consola H2 en:    http://localhost:8080/h2-console");
-        System.out.println("   → JDBC URL: jdbc:h2:mem:coachlabdb\n");
+        System.out.println("🗄️  Consola H2 en:    http://localhost:8080/h2-console\n");
     }
 }

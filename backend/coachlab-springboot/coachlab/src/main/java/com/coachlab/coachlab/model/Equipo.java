@@ -28,6 +28,7 @@ public class Equipo {
 
     private String categoria;       // Ej: "Infantil A", "Amateur Senior"
     private String temporada;       // Ej: "2024/2025"
+    private String ciudad;           // Ciudad del equipo (opcional)
     private String escudoUrl;       // URL de imagen del escudo (opcional)
 
     // Un equipo tiene muchos jugadores

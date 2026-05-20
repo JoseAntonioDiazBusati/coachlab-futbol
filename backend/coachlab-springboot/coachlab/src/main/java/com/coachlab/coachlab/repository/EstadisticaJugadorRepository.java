@@ -26,4 +26,12 @@ public interface EstadisticaJugadorRepository extends JpaRepository<EstadisticaJ
     // Total de minutos jugados
     @Query("SELECT SUM(e.minutosJugados) FROM EstadisticaJugador e WHERE e.jugador.id = :jugadorId")
     Integer totalMinutosByJugador(@Param("jugadorId") Long jugadorId);
+
+    // Total de tarjetas amarillas
+    @Query("SELECT SUM(e.tarjetasAmarillas) FROM EstadisticaJugador e WHERE e.jugador.id = :jugadorId")
+    Integer totalTarjetasAmarillasByJugador(@Param("jugadorId") Long jugadorId);
+
+    // Total de tarjetas rojas
+    @Query("SELECT SUM(e.tarjetasRojas) FROM EstadisticaJugador e WHERE e.jugador.id = :jugadorId")
+    Integer totalTarjetasRojasByJugador(@Param("jugadorId") Long jugadorId);
 }
