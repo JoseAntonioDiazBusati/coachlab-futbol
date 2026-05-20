@@ -20,6 +20,7 @@ export class DashboardHeaderComponent {
     { label: 'Ligas',      path: '/ligas' },
     { label: 'Plantilla',  path: '/plantilla' },
     { label: 'Prepartido', path: '/prepartido' },
+    { label: 'Partidos',   path: '/partidos' },
   ];
 
   logout() {
