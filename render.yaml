@@ -1,0 +1,19 @@
+# CoachLab Futbol — Render Blueprint
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: private-service
+    name: backend
+    runtime: docker
+    dockerfilePath: ./backend/coachlab-springboot/coachlab/Dockerfile
+    dockerContext: ./backend/coachlab-springboot/coachlab
+    envVars:
+      - fromGroup: coachlab-secrets
+
+  - type: web
+    name: frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - fromGroup: coachlab-secrets
