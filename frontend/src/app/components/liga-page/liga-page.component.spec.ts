@@ -363,8 +363,8 @@ describe('LigaPageComponent', () => {
 
       comp.resetearApiBase();
 
-      expect(comp.apiBaseInput).toBe('/fd-api/v4');
-      expect(fdSvc.getApiBase()).toBe('/fd-api/v4');
+      expect(comp.apiBaseInput).toBe('/api/fd');
+      expect(fdSvc.getApiBase()).toBe('/api/fd');
     });
   });
 

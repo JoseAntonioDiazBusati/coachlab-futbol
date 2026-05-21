@@ -15,7 +15,7 @@ import {
 } from '../../services/jugador.service';
 import { getCurrentSeason } from '../../utils/temporada.utils';
 
-type Paso = 'metodo' | 'api-key' | 'api-ligas' | 'api-equipos' | 'manual' | 'jugadores';
+type Paso = 'metodo' | 'api-ligas' | 'api-equipos' | 'manual' | 'jugadores';
 
 interface EquipoManual {
   nombre: string;
@@ -32,10 +32,10 @@ interface EquipoManual {
   styleUrl: './setup-page.component.scss',
 })
 export class SetupPageComponent {
-  private readonly router        = inject(Router);
-  private readonly fdService     = inject(FootballDataService);
-  private readonly equipoService = inject(EquipoService);
-  private readonly equipoActivo  = inject(EquipoActivoService);
+  private readonly router         = inject(Router);
+  private readonly fdService      = inject(FootballDataService);
+  private readonly equipoService  = inject(EquipoService);
+  private readonly equipoActivo   = inject(EquipoActivoService);
   private readonly jugadorService = inject(JugadorService);
 
   // ── Wizard state ─────────────────────────────────
@@ -44,7 +44,6 @@ export class SetupPageComponent {
   error: string | null = null;
 
   // ── API flow ─────────────────────────────────────
-  apiKey = this.fdService.getApiKey() ?? '';
   competiciones: FdCompeticion[] = [];
   competicionSeleccionada: FdCompeticion | null = null;
   equiposApi: FdEquipo[] = [];
@@ -71,31 +70,12 @@ export class SetupPageComponent {
   // ── Navigation ───────────────────────────────────
   elegirMetodo(metodo: 'api' | 'manual'): void {
     this.error = null;
-    this.paso = metodo === 'api' ? 'api-key' : 'manual';
-  }
-
-  volver(): void {
-    this.error = null;
-    const prevPaso: Record<Paso, Paso> = {
-      'metodo':     'metodo',
-      'api-key':    'metodo',
-      'api-ligas':  'api-key',
-      'api-equipos': 'api-ligas',
-      'manual':     'metodo',
-      'jugadores':  'manual',   // safety fallback (button not shown in this step)
-    };
-    this.paso = prevPaso[this.paso];
-  }
-
-  // ── API flow methods ─────────────────────────────
-  cargarCompeticiones(): void {
-    if (!this.apiKey.trim()) {
-      this.error = 'Introduce una API key válida.';
+    if (metodo === 'manual') {
+      this.paso = 'manual';
       return;
     }
-    this.fdService.setApiKey(this.apiKey);
+    // API: cargar competiciones directamente (sin paso api-key — la clave está en el servidor)
     this.cargando = true;
-    this.error = null;
     this.fdService.listarCompeticiones().subscribe({
       next: (comps) => {
         this.competiciones = comps;
@@ -109,6 +89,19 @@ export class SetupPageComponent {
     });
   }
 
+  volver(): void {
+    this.error = null;
+    const prevPaso: Record<Paso, Paso> = {
+      'metodo':      'metodo',
+      'api-ligas':   'metodo',
+      'api-equipos': 'api-ligas',
+      'manual':      'metodo',
+      'jugadores':   'manual',
+    };
+    this.paso = prevPaso[this.paso];
+  }
+
+  // ── API flow methods ─────────────────────────────
   seleccionarCompeticion(comp: FdCompeticion): void {
     this.competicionSeleccionada = comp;
     this.cargando = true;
@@ -178,7 +171,7 @@ export class SetupPageComponent {
           this.jugadoresAgregados = [];
           this.nuevoJugador = this.jugadorVacio();
           this.cargando = false;
-          this.paso = 'jugadores';   // ← go to player-addition step, not dashboard
+          this.paso = 'jugadores';
         },
         error: (err: Error) => {
           this.error = err.message;
@@ -204,7 +197,7 @@ export class SetupPageComponent {
 
     this.jugadorService.crear(this.equipoRecienCreadoId, this.nuevoJugador).subscribe({
       next: (jugador) => {
-        this.jugadoresAgregados = [...this.jugadoresAgregados, jugador];
+        this.jugadoresAgregados = [...this.jugadoresAgregados, jugador as PlantillaJugador];
         this.nuevoJugador = this.jugadorVacio();
         this.guardandoJugador = false;
       },
@@ -220,20 +213,18 @@ export class SetupPageComponent {
     this.jugadorService.eliminar(this.equipoRecienCreadoId, jugadorId).subscribe({
       next: () => {
         this.jugadoresAgregados = this.jugadoresAgregados.filter(
-          j => j.jugadorId !== jugadorId,
+          (j) => j.jugadorId !== jugadorId,
         );
       },
     });
   }
 
-  /** Navigate to plantilla to see the newly added players. */
   verPlantilla(): void {
     this.router.navigate(['/plantilla'], {
       queryParams: { equipoId: this.equipoRecienCreadoId },
     });
   }
 
-  /** Skip player addition and go straight to the dashboard. */
   saltarJugadores(): void {
     this.router.navigate(['/dashboard']);
   }

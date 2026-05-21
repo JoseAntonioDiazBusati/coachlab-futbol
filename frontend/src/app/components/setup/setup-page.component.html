@@ -17,11 +17,11 @@
         <p class="step-sub">Elige cómo quieres añadir tu equipo a CoachLab.</p>
 
         <div class="method-grid">
-          <button class="method-card" (click)="elegirMetodo('api')">
+          <button class="method-card" (click)="elegirMetodo('api')" [disabled]="cargando">
             <div class="method-badge">API</div>
             <h3>football-data.org</h3>
             <p>Importa tu equipo desde la base de datos de ligas profesionales de Europa y el mundo.</p>
-            <span class="method-cta">Conectar →</span>
+            <span class="method-cta">{{ cargando ? 'Cargando ligas...' : 'Conectar →' }}</span>
           </button>
           <button class="method-card" (click)="elegirMetodo('manual')">
             <div class="method-badge manual">&#9998;</div>
@@ -33,53 +33,13 @@
       </div>
     }
 
-    <!-- PASO: API Key -->
-    @if (paso === 'api-key') {
-      <div class="step fade-in">
-        <div class="step-header">
-          <button class="btn-back" (click)="volver()">← Volver</button>
-          <p class="step-breadcrumb">football-data.org &rsaquo; <strong>API Key</strong></p>
-        </div>
-        <h2 class="step-title">Introduce tu API key</h2>
-        <p class="step-sub">
-          Necesitas una API key gratuita de football-data.org para buscar ligas y equipos.
-        </p>
-
-        <div class="field">
-          <label for="api-key-input">API Key</label>
-          <input
-            id="api-key-input"
-            type="text"
-            [(ngModel)]="apiKey"
-            placeholder="Ej: abc123def456..."
-            (keyup.enter)="cargarCompeticiones()"
-            autocomplete="off"
-          />
-          <span class="field-hint">
-            Regístrate en <strong>football-data.org</strong> para obtener tu API key gratuita (capa free: 10&nbsp;req/min).
-          </span>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn-outline" (click)="volver()">Cancelar</button>
-          <button
-            class="btn-primary"
-            (click)="cargarCompeticiones()"
-            [disabled]="cargando || !apiKey.trim()"
-          >
-            {{ cargando ? 'Cargando...' : 'Cargar ligas' }}
-          </button>
-        </div>
-      </div>
-    }
-
     <!-- PASO: Ligas -->
     @if (paso === 'api-ligas') {
       <div class="step fade-in">
         <div class="step-header">
           <button class="btn-back" (click)="volver()">← Volver</button>
           <p class="step-breadcrumb">
-            football-data.org &rsaquo; API Key &rsaquo; <strong>Liga</strong>
+            football-data.org &rsaquo; <strong>Liga</strong>
           </p>
         </div>
         <h2 class="step-title">Selecciona una liga</h2>
@@ -91,7 +51,7 @@
           <div class="loading-msg">Cargando equipos...</div>
         } @else {
           <div class="competicion-grid">
-            @for (comp of competiciones; track comp.code) {
+            @for (comp of competiciones; track comp.id) {
               <button
                 class="competicion-card"
                 [class.selected]="competicionSeleccionada?.code === comp.code"

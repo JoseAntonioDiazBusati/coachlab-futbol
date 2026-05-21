@@ -1,5 +1,6 @@
 package com.coachlab.coachlab.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -32,12 +33,14 @@ public class Jugador {
     private Integer edad;
     private String fotoUrl;
 
-    // Relación con el equipo al que pertenece
+    // Relación con el equipo — excluida de JSON para evitar ciclos y LazyInitializationException
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "equipo_id", nullable = false)
     private Equipo equipo;
 
-    // Estadísticas del jugador en cada partido
+    // Estadísticas por partido — excluidas de JSON
+    @JsonIgnore
     @OneToMany(mappedBy = "jugador", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<EstadisticaJugador> estadisticas = new ArrayList<>();

@@ -62,7 +62,7 @@ public class JugadorService {
             List<EstadisticaJugador> stats = estadisticaRepository.findByJugadorId(j.getId());
 
             double impactoTotal = stats.stream()
-                    .mapToDouble(s -> s.calcularImpacto(j.getPosicion()))
+                    .mapToDouble(s -> s.calcularImpacto())
                     .sum();
 
             Integer goles       = estadisticaRepository.totalGolesByJugador(j.getId());

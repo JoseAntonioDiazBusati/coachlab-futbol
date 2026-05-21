@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 interface Feature {
   icon: string;
@@ -16,6 +17,7 @@ interface Feature {
   styleUrl: './features.component.scss',
 })
 export class FeaturesComponent {
+  private readonly sanitizer = inject(DomSanitizer);
   features: Feature[] = [
     {
       icon: 'check',
@@ -61,7 +63,7 @@ export class FeaturesComponent {
     },
   ];
 
-  getIcon(iconName: string): string {
+  getIcon(iconName: string): SafeHtml {
     const icons: { [key: string]: string } = {
       check: `<circle cx="11" cy="11" r="9" stroke="#10B981" stroke-width="1.5"/>
               <path d="M7 11 L10 14 L15 8" stroke="#10B981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
@@ -86,7 +88,8 @@ export class FeaturesComponent {
               <path d="M5 6 Q11 9 17 6" stroke="#10B981" stroke-width="0.8" stroke-dasharray="2 2"/>
               <path d="M5 16 Q11 13 17 16" stroke="#10B981" stroke-width="0.8" stroke-dasharray="2 2"/>`,
     };
-    return icons[iconName] || icons['check'];
+    const raw = icons[iconName] ?? icons['check'];
+    return this.sanitizer.bypassSecurityTrustHtml(raw);
   }
 }
 

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 
@@ -17,47 +17,64 @@ export class AuthPanelComponent {
   @Output() close = new EventEmitter<void>();
   @Output() authenticated = new EventEmitter<void>();
 
-  name = '';
-  email = '';
-  password = '';
-  error = '';
+  private readonly authService = inject(AuthService);
 
-  constructor(private readonly authService: AuthService) {
+  name     = '';
+  email    = '';
+  password = '';
+  error    = '';
+  cargando = false;
+
+  constructor() {
     const defaults = this.authService.getDefaultUser();
-    this.email = defaults.email;
+    this.email    = defaults.email;
     this.password = defaults.password;
   }
 
-  onSubmit() {
+  onSubmit(): void {
     this.error = '';
     const trimmedEmail = this.email.trim();
     if (!trimmedEmail || !this.password.trim()) {
       this.error = 'Completa los campos requeridos.';
       return;
     }
+    if (this.cargando) return;
 
-    const success =
+    this.cargando = true;
+
+    const request$ =
       this.mode === 'login'
         ? this.authService.login(trimmedEmail, this.password)
         : this.authService.register(this.name.trim() || 'Usuario', trimmedEmail, this.password);
 
-    if (!success) {
-      this.error = this.mode === 'login' ? 'Credenciales invalidas.' : 'El correo ya existe.';
-      return;
-    }
-
-    this.authenticated.emit();
+    request$.subscribe({
+      next: () => {
+        this.cargando = false;
+        this.authenticated.emit();
+      },
+      error: (err: { status?: number; message?: string }) => {
+        this.cargando = false;
+        if (err.status === 401 || err.status === 403) {
+          this.error = 'Credenciales inválidas.';
+        } else if (err.status === 409) {
+          this.error = 'El correo ya está registrado.';
+        } else if (err.status === 400) {
+          this.error = 'Datos inválidos. Revisa el formulario.';
+        } else {
+          this.error = 'Error al conectar con el servidor. Inténtalo de nuevo.';
+        }
+      },
+    });
   }
 
-  onClose() {
+  onClose(): void {
     this.close.emit();
   }
 
-  onSwitch(mode: AuthMode) {
-    this.mode = mode;
+  onSwitch(mode: AuthMode): void {
+    this.mode  = mode;
     this.error = '';
   }
 }
 
 export {};
-

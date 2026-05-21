@@ -1,0 +1,322 @@
+<app-dashboard-header></app-dashboard-header>
+
+<section class="registrar container">
+
+  <!-- ── Cabecera de sección ──────────────────────── -->
+  <div class="section-head inline">
+    <div>
+      <p class="eyebrow">Partidos</p>
+      <h2 class="section-title">Registrar Partido</h2>
+      <p class="section-sub">
+        @if (equipo) { {{ equipo.nombre }} · }Lleva el registro de resultados y participaciones.
+      </p>
+    </div>
+    <div class="section-actions">
+      <button
+        class="btn-primary"
+        (click)="abrirFormulario()"
+        [disabled]="!equipo || cargando"
+      >
+        + Nuevo Partido
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Banners de estado ─────────────────────────── -->
+  @if (error) {
+    <div class="status-banner error">
+      <span>{{ error }}</span>
+      <button class="btn-retry" (click)="cargarDatos()">Reintentar</button>
+    </div>
+  }
+
+  <!-- ── Cargando ──────────────────────────────────── -->
+  @if (cargando) {
+    <div class="loading-state">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      <p class="loading-msg">Cargando datos del equipo…</p>
+    </div>
+
+  <!-- ── Sin equipo activo ─────────────────────────── -->
+  } @else if (sinEquipo) {
+    <div class="empty-page fade-in">
+      <div class="empty-icon">🏟</div>
+      <h3 class="empty-title">Sin equipo activo</h3>
+      <p class="empty-sub">
+        Necesitas tener un equipo registrado para llevar el control de tus partidos.
+        Crea uno manualmente o impórtalo desde football-data.org.
+      </p>
+      <div class="empty-actions">
+        <a class="btn-primary" routerLink="/ligas">Ir a Ligas</a>
+      </div>
+    </div>
+
+  <!-- ── Sin partidos ──────────────────────────────── -->
+  } @else if (partidos.length === 0 && !error) {
+    <div class="empty-page fade-in">
+      <div class="empty-icon">📋</div>
+      <h3 class="empty-title">Sin partidos registrados</h3>
+      <p class="empty-sub">
+        Aún no has registrado ningún partido para
+        <strong>{{ equipo?.nombre }}</strong>. Pulsa el botón para añadir el primero.
+      </p>
+      <div class="empty-actions">
+        <button class="btn-primary" (click)="abrirFormulario()">+ Nuevo Partido</button>
+      </div>
+    </div>
+
+  <!-- ── Lista de partidos ──────────────────────────── -->
+  } @else {
+    <div class="partidos-list">
+      @for (p of partidos; track trackById($index, p)) {
+
+        <div class="partido-card fade-in">
+
+          <!-- Fila de metadatos -->
+          <div class="partido-meta">
+            <span class="meta-competicion">{{ p.competicion }}</span>
+            <span class="meta-sep">·</span>
+            <span class="meta-fecha">{{ fechaFormateada(p.fecha) }}</span>
+            <span class="meta-sep">·</span>
+            <span class="meta-condicion" [class.local]="p.esLocal" [class.visitante]="!p.esLocal">
+              {{ condicionLabel(p.esLocal) }}
+            </span>
+            <span class="resultado-badge" [class]="resultadoClass(p.resultado)">
+              {{ resultadoLabel(p.resultado) }}
+            </span>
+            <button
+              class="btn-delete-card"
+              (click)="eliminarPartido(p.id)"
+              title="Eliminar partido"
+            >✕</button>
+          </div>
+
+          <!-- Marcador -->
+          <div class="partido-score">
+
+            <!-- Equipo izquierdo (local) -->
+            <div class="score-side" [class.our-side]="p.esLocal">
+              <span class="score-team-name">
+                {{ p.esLocal ? equipo?.nombre : p.rival }}
+              </span>
+              <span class="score-goals">
+                {{ p.esLocal ? p.golesNuestros : p.golesRivales }}
+              </span>
+            </div>
+
+            <span class="score-divider">—</span>
+
+            <!-- Equipo derecho (visitante) -->
+            <div class="score-side right" [class.our-side]="!p.esLocal">
+              <span class="score-goals">
+                {{ p.esLocal ? p.golesRivales : p.golesNuestros }}
+              </span>
+              <span class="score-team-name">
+                {{ p.esLocal ? p.rival : equipo?.nombre }}
+              </span>
+            </div>
+
+          </div><!-- /partido-score -->
+
+          <!-- Jugadores participantes -->
+          @if (p.jugadoresIds.length > 0) {
+            <div class="partido-jugadores">
+              <span class="jugadores-label">
+                Participantes ({{ p.jugadoresIds.length }})
+              </span>
+              <div class="jugadores-chips">
+                @for (j of jugadoresDelPartido(p); track j.jugadorId) {
+                  <span class="jugador-chip">
+                    @if (j.dorsal !== undefined) {
+                      <span class="chip-dorsal">{{ j.dorsal }}</span>
+                    }
+                    {{ j.nombre }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+
+        </div><!-- /partido-card -->
+      }
+    </div><!-- /partidos-list -->
+  }
+
+</section>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- Modal: Nuevo Partido                             -->
+<!-- ════════════════════════════════════════════════ -->
+@if (mostrarFormulario) {
+  <div class="modal-overlay" (click)="cerrarFormulario()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <h3 class="modal-title">Nuevo Partido</h3>
+        <button class="modal-close" (click)="cerrarFormulario()" aria-label="Cerrar">✕</button>
+      </div>
+
+      <!-- ── Bloque 1: datos del partido ──────────── -->
+      <div class="form-section">
+        <p class="form-section-label">Datos del partido</p>
+
+        <div class="form-row">
+          <label class="field">
+            <span>Rival *</span>
+            <input
+              type="text"
+              [(ngModel)]="nuevo.rival"
+              placeholder="Ej: Real Madrid"
+              autocomplete="off"
+            />
+          </label>
+
+          <label class="field">
+            <span>Fecha *</span>
+            <input type="date" [(ngModel)]="nuevo.fecha" />
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="field">
+            <span>Competición *</span>
+            <input
+              type="text"
+              [(ngModel)]="nuevo.competicion"
+              placeholder="Ej: Liga, Copa, Amistoso"
+              autocomplete="off"
+            />
+          </label>
+
+          <div class="field">
+            <span>Condición</span>
+            <div class="tab-group">
+              <button
+                type="button"
+                class="tab-btn"
+                [class.active]="nuevo.esLocal"
+                (click)="nuevo.esLocal = true"
+              >Local</button>
+              <button
+                type="button"
+                class="tab-btn"
+                [class.active]="!nuevo.esLocal"
+                (click)="nuevo.esLocal = false"
+              >Visitante</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Bloque 2: resultado ───────────────────── -->
+      <div class="form-section">
+        <p class="form-section-label">Resultado</p>
+
+        <div class="score-form">
+
+          <!-- Nuestro equipo -->
+          <div class="score-form-team" [class.highlighted]="nuevo.esLocal">
+            <span class="score-form-name">
+              {{ nuevo.esLocal ? (equipo?.nombre ?? 'Tu equipo') : nuevo.rival || 'Rival' }}
+            </span>
+            <input
+              class="score-form-input"
+              type="number"
+              [(ngModel)]="nuevo.golesNuestros"
+              [placeholder]="nuevo.esLocal ? '0' : '0'"
+              min="0"
+            />
+          </div>
+
+          <span class="score-form-vs">—</span>
+
+          <!-- Rival -->
+          <div class="score-form-team right" [class.highlighted]="!nuevo.esLocal">
+            <input
+              class="score-form-input"
+              type="number"
+              [(ngModel)]="nuevo.golesRivales"
+              [placeholder]="nuevo.esLocal ? '0' : '0'"
+              min="0"
+            />
+            <span class="score-form-name">
+              {{ nuevo.esLocal ? nuevo.rival || 'Rival' : (equipo?.nombre ?? 'Tu equipo') }}
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Vista previa del resultado -->
+        @if (nuevo.golesNuestros !== null && nuevo.golesRivales !== null) {
+          @let gN = nuevo.golesNuestros;
+          @let gR = nuevo.golesRivales;
+          <div class="resultado-preview">
+            <span
+              class="resultado-badge"
+              [class]="resultadoClass(gN > gR ? 'VICTORIA' : gN < gR ? 'DERROTA' : 'EMPATE')"
+            >
+              {{ resultadoLabel(gN > gR ? 'VICTORIA' : gN < gR ? 'DERROTA' : 'EMPATE') }}
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- ── Bloque 3: selección de jugadores ──────── -->
+      @if (jugadores.length > 0) {
+        <div class="form-section">
+          <div class="jugadores-section-head">
+            <p class="form-section-label">
+              Jugadores participantes
+              @if (nuevo.jugadoresSeleccionados.size > 0) {
+                <span class="sel-count">({{ nuevo.jugadoresSeleccionados.size }})</span>
+              }
+            </p>
+            <div class="jugadores-bulk">
+              <button type="button" class="link-btn" (click)="seleccionarTodos()">Todos</button>
+              <span class="sep">·</span>
+              <button type="button" class="link-btn" (click)="deseleccionarTodos()">Ninguno</button>
+            </div>
+          </div>
+
+          <div class="jugadores-grid">
+            @for (j of jugadores; track trackByJugador($index, j)) {
+              <button
+                type="button"
+                class="jugador-toggle"
+                [class.selected]="jugadorEstaSeleccionado(j.jugadorId)"
+                (click)="toggleJugador(j.jugadorId)"
+              >
+                @if (j.dorsal !== undefined) {
+                  <span class="toggle-dorsal">{{ j.dorsal }}</span>
+                }
+                <span class="toggle-nombre">{{ j.nombre }}</span>
+                <span class="toggle-pos">{{ j.posicion }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ── Error de formulario ────────────────────── -->
+      @if (errorFormulario) {
+        <div class="status-banner error">{{ errorFormulario }}</div>
+      }
+
+      <!-- ── Acciones ───────────────────────────────── -->
+      <div class="modal-actions">
+        <button type="button" class="btn-outline" (click)="cerrarFormulario()">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="guardar()"
+          [disabled]="!formularioValido || guardando"
+        >
+          {{ guardando ? 'Guardando…' : 'Guardar partido' }}
+        </button>
+      </div>
+
+    </div><!-- /modal-card -->
+  </div><!-- /modal-overlay -->
+}

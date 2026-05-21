@@ -1,25 +1,20 @@
 /**
  * Entorno de DESARROLLO.
- * Las peticiones a football-data.org se enrutan a través del proxy local
- * definido en proxy.conf.json, evitando CORS durante el `ng serve`.
+ *
+ * Todas las peticiones al backend y al proxy de football-data.org
+ * pasan por el proxy del Angular Dev Server (proxy.conf.json):
+ *   /api  → http://localhost:8080/api
  *
  * Sustitución automática: en `ng build --configuration production`
  * Angular reemplaza este fichero por environment.prod.ts.
  */
 export const environment = {
   production: false,
+  /** Base URL para la API del backend CoachLab. */
+  apiBase: '/api',
   /**
-   * Base URL para football-data.org.
-   * En desarrollo apunta al proxy de Angular Dev Server.
-   * En producción (environment.prod.ts) apunta directamente a la API.
+   * Base URL para el proxy de football-data.org servido por el backend.
+   * En producción, Nginx enruta /api/fd → backend → football-data.org.
    */
-  fdApiBase: '/fd-api/v4',
-  /**
-   * API key de football-data.org.
-   * Rellena con tu clave personal antes de ejecutar la aplicación.
-   * Obtén una gratuita en https://www.football-data.org/client/register
-   *
-   * ⚠ No subas este valor a control de versiones si el repositorio es público.
-   */
-  fdApiKey: '',
+  fdApiBase: '/api/fd',
 } as const;

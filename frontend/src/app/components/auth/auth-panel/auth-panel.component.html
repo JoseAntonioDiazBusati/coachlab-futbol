@@ -40,8 +40,8 @@
         <p class="auth-error">{{ error }}</p>
       }
 
-      <button class="auth-submit" type="submit">
-        {{ mode === 'login' ? 'Entrar al dashboard' : 'Crear usuario' }}
+      <button class="auth-submit" type="submit" [disabled]="cargando">
+        {{ cargando ? 'Accediendo...' : (mode === 'login' ? 'Entrar al dashboard' : 'Crear usuario') }}
       </button>
     </form>
 

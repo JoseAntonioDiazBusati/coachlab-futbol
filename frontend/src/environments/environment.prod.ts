@@ -1,23 +1,19 @@
 /**
  * Entorno de PRODUCCIÓN.
- * football-data.org soporta CORS (Access-Control-Allow-Origin: *)
- * por lo que el navegador puede llamar directamente a su API sin proxy.
  *
- * Referencia: https://www.football-data.org/documentation/api
+ * En producción, Nginx sirve la SPA y actúa como proxy inverso:
+ *   /api  → http://backend:8080/api   (Docker Compose internal network)
+ *
+ * El frontend nunca llama directamente a football-data.org.
+ * Todas las peticiones FD pasan por /api/fd → backend → football-data.org.
  */
 export const environment = {
   production: true,
+  /** Base URL para la API del backend CoachLab. */
+  apiBase: '/api',
   /**
-   * URL directa a la API v4 de football-data.org.
-   * No requiere proxy porque el servidor incluye cabeceras CORS.
+   * Base URL para el proxy de football-data.org servido por el backend.
+   * Nginx enruta /api/fd → backend → football-data.org.
    */
-  fdApiBase: 'https://api.football-data.org/v4',
-  /**
-   * API key de football-data.org.
-   * Rellena con tu clave de producción antes de compilar.
-   * Obtén una gratuita en https://www.football-data.org/client/register
-   *
-   * ⚠ No subas este valor a control de versiones si el repositorio es público.
-   */
-  fdApiKey: '',
+  fdApiBase: '/api/fd',
 } as const;
