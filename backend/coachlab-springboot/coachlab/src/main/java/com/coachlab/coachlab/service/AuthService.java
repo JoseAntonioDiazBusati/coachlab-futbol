@@ -23,7 +23,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest req) {
         if (usuarioRepository.existsByEmail(req.getEmail())) {
-            throw new IllegalArgumentException("El email ya está registrado.");
+            throw new IllegalStateException("El email ya está registrado.");
         }
         Usuario usuario = Usuario.builder()
                 .nombre(req.getNombre())

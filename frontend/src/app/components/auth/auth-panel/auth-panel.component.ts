@@ -55,9 +55,9 @@ export class AuthPanelComponent {
       error: (err: { status?: number; message?: string }) => {
         this.cargando = false;
         if (err.status === 401 || err.status === 403) {
-          this.error = this.mode === 'login'
-            ? 'Credenciales inválidas.'
-            : 'El correo ya está registrado.';
+          this.error = 'Credenciales inválidas.';
+        } else if (err.status === 409) {
+          this.error = 'El correo ya está registrado.';
         } else if (err.status === 400) {
           this.error = 'Datos inválidos. Revisa el formulario.';
         } else {
