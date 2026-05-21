@@ -1,5 +1,6 @@
 package com.coachlab.coachlab.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -31,12 +32,15 @@ public class Equipo {
     private String ciudad;           // Ciudad del equipo (opcional)
     private String escudoUrl;       // URL de imagen del escudo (opcional)
 
-    // Un equipo tiene muchos jugadores
+    // Un equipo tiene muchos jugadores — excluidos de la serialización JSON
+    // para evitar LazyInitializationException fuera de transacción.
+    @JsonIgnore
     @OneToMany(mappedBy = "equipo", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Jugador> jugadores = new ArrayList<>();
 
-    // Un equipo tiene muchos partidos
+    // Un equipo tiene muchos partidos — excluidos de la serialización JSON.
+    @JsonIgnore
     @OneToMany(mappedBy = "equipo", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Partido> partidos = new ArrayList<>();
