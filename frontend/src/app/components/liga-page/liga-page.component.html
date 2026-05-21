@@ -109,7 +109,7 @@
             <span class="step-label">Selecciona una liga · {{ competiciones.length }} disponibles</span>
           </div>
           <div class="competicion-grid">
-            @for (comp of competiciones; track comp.code) {
+            @for (comp of competiciones; track comp.id) {
               <button
                 class="competicion-card"
                 [class.selected]="competicionSeleccionada?.code === comp.code"

@@ -51,7 +51,7 @@
           <div class="loading-msg">Cargando equipos...</div>
         } @else {
           <div class="competicion-grid">
-            @for (comp of competiciones; track comp.code) {
+            @for (comp of competiciones; track comp.id) {
               <button
                 class="competicion-card"
                 [class.selected]="competicionSeleccionada?.code === comp.code"
