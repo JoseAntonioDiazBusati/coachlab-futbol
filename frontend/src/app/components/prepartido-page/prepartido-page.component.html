@@ -1,0 +1,316 @@
+<app-dashboard-header></app-dashboard-header>
+
+<section class="prepartido container">
+
+  <div class="section-head">
+    <p class="eyebrow">Prepartido</p>
+    <h2 class="section-title">Alineación</h2>
+    <p class="section-sub">
+      @if (equipo) { {{ equipo.nombre }} · }Diseña tu once y consulta las probabilidades del partido.
+    </p>
+  </div>
+
+  @if (cargando) {
+
+    <!-- ── Cargando ──────────────────────────────── -->
+    <div class="loading-state">
+      <div class="loading-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="loading-msg">Cargando datos del equipo…</p>
+    </div>
+
+  } @else if (error) {
+
+    <!-- ── Error al cargar ────────────────────────── -->
+    <div class="empty-page fade-in">
+      <div class="empty-icon icon-error">⚠</div>
+      <h3 class="empty-title">Error al cargar</h3>
+      <p class="empty-sub">{{ error }}</p>
+      <div class="empty-actions">
+        <button class="btn-primary" (click)="cargarEquipo()">Reintentar</button>
+      </div>
+    </div>
+
+  } @else if (!equipo) {
+
+    <!-- ── Sin equipo activo ──────────────────────── -->
+    <div class="empty-page fade-in">
+      <div class="empty-icon">🏟</div>
+      <h3 class="empty-title">Sin equipo activo</h3>
+      <p class="empty-sub">
+        Para preparar tu alineación necesitas tener un equipo registrado.
+        Crea uno manualmente o impórtalo desde football-data.org.
+      </p>
+      <div class="empty-actions">
+        <a class="btn-primary" routerLink="/ligas">Ir a Ligas</a>
+      </div>
+    </div>
+
+  } @else if (sinJugadores) {
+
+    <!-- ── Equipo sin jugadores ───────────────────── -->
+    <div class="empty-page fade-in">
+      <div class="empty-icon">👥</div>
+      <h3 class="empty-title">Plantilla vacía</h3>
+      <p class="empty-sub">
+        <strong>{{ equipo.nombre }}</strong> aún no tiene jugadores.
+        Añade tu plantilla para diseñar la alineación y calcular las probabilidades del encuentro.
+      </p>
+      <div class="empty-actions">
+        <a class="btn-primary" routerLink="/plantilla" [queryParams]="{ equipoId: equipo.id }">
+          Ir a Plantilla
+        </a>
+        <a class="btn-outline" routerLink="/ligas">Cambiar equipo</a>
+      </div>
+    </div>
+
+  } @else {
+
+    <!-- ── Barra de controles ─────────────────── -->
+    <div class="controls-bar">
+
+      <div class="control-group">
+        <span class="control-label">Formación</span>
+        <div class="tab-group">
+          @for (f of formaciones; track f) {
+            <button
+              class="tab-btn"
+              [class.active]="formacion === f"
+              (click)="formacion = f; cambiarFormacion()"
+            >{{ f }}</button>
+          }
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Rival</span>
+        <input
+          class="rival-input"
+          type="text"
+          [(ngModel)]="rivalNombre"
+          placeholder="Nombre del rival"
+        />
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Fortaleza rival</span>
+        <div class="tab-group">
+          <button class="tab-btn"
+            [class.active]="rivalFortaleza === 'debil'"
+            (click)="rivalFortaleza = 'debil'">Débil</button>
+          <button class="tab-btn warn"
+            [class.active]="rivalFortaleza === 'normal'"
+            (click)="rivalFortaleza = 'normal'">Normal</button>
+          <button class="tab-btn danger"
+            [class.active]="rivalFortaleza === 'fuerte'"
+            (click)="rivalFortaleza = 'fuerte'">Fuerte</button>
+        </div>
+      </div>
+
+      <div class="control-actions">
+        <button class="btn-ghost-sm" (click)="autoCompletar()">⚡ Auto-completar</button>
+        <button class="btn-ghost-sm" (click)="limpiarCampo()">✕ Limpiar</button>
+      </div>
+
+    </div>
+
+    <!-- ── Layout principal ──────────────────── -->
+    <div class="main-layout">
+
+      <!-- Campo -->
+      <div class="campo-col">
+        <div class="campo-wrapper">
+          <div class="campo">
+
+            <!-- Trazado del campo (SVG) -->
+            <svg class="campo-svg" viewBox="0 0 70 100" preserveAspectRatio="none" aria-hidden="true">
+              <!-- franjas de césped -->
+              <rect x="0" y="0"  width="70" height="10" fill="rgba(0,0,0,0.04)"/>
+              <rect x="0" y="20" width="70" height="10" fill="rgba(0,0,0,0.04)"/>
+              <rect x="0" y="40" width="70" height="10" fill="rgba(0,0,0,0.04)"/>
+              <rect x="0" y="60" width="70" height="10" fill="rgba(0,0,0,0.04)"/>
+              <rect x="0" y="80" width="70" height="10" fill="rgba(0,0,0,0.04)"/>
+              <!-- borde exterior -->
+              <rect x="2" y="2" width="66" height="96" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <!-- línea de centro -->
+              <line x1="2" y1="50" x2="68" y2="50" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <!-- círculo central -->
+              <circle cx="35" cy="50" r="8" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <circle cx="35" cy="50" r="0.8" fill="rgba(255,255,255,0.5)"/>
+              <!-- área grande inferior (defensa) -->
+              <rect x="15" y="80" width="40" height="18" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <!-- área pequeña inferior -->
+              <rect x="23" y="91" width="24" height="7"  fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <!-- punto de penalti inferior -->
+              <circle cx="35" cy="86" r="0.7" fill="rgba(255,255,255,0.5)"/>
+              <!-- portería inferior -->
+              <rect x="28" y="97" width="14" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.45)" stroke-width="0.5"/>
+              <!-- área grande superior (ataque) -->
+              <rect x="15" y="2"  width="40" height="18" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <!-- área pequeña superior -->
+              <rect x="23" y="2"  width="24" height="7"  fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.6"/>
+              <!-- punto de penalti superior -->
+              <circle cx="35" cy="14" r="0.7" fill="rgba(255,255,255,0.5)"/>
+              <!-- portería superior -->
+              <rect x="28" y="0"  width="14" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.45)" stroke-width="0.5"/>
+            </svg>
+
+            <!-- Etiquetas ATAQUE / DEFENSA -->
+            <div class="campo-label top">ATAQUE</div>
+            <div class="campo-label bottom">DEFENSA</div>
+
+            <!-- Slots -->
+            @for (slot of slots; track trackBySlot($index, slot)) {
+              <div
+                class="slot"
+                [class.slot-ocupado]="slot.jugador !== null"
+                [class.slot-activo]="jugadorSeleccionado !== null && slot.jugador === null"
+                [class.slot-drag-over]="slotDragOver === slot.id"
+                [style.left.%]="slot.x"
+                [style.top.%]="slot.y"
+                (click)="clickSlot(slot)"
+                (dragover)="onSlotDragOver($event, slot.id)"
+                (dragleave)="onSlotDragLeave()"
+                (drop)="onSlotDrop($event, slot)"
+              >
+                @if (slot.jugador) {
+                  <div
+                    class="slot-inner"
+                    draggable="true"
+                    (dragstart)="onSlotDragStart($event, slot)"
+                    (dragend)="onDragEnd()"
+                  >
+                    <span class="slot-dorsal">{{ slot.jugador.dorsal ?? '' }}</span>
+                    <span class="slot-nombre">{{ slot.jugador.nombre }}</span>
+                    <span [class]="'slot-trend ' + getTrendClass(slot.jugador)">
+                      {{ getDinamicaTrend(slot.jugador) }}
+                    </span>
+                  </div>
+                } @else {
+                  <span class="slot-etiqueta">{{ slot.etiqueta }}</span>
+                }
+              </div>
+            }
+
+          </div><!-- /campo -->
+        </div><!-- /campo-wrapper -->
+
+        <p class="campo-counter">
+          <span [class.completo]="totalEnCampo === 11">{{ totalEnCampo }}/11</span>
+          jugadores en el campo
+          @if (totalEnCampo === 11) {
+            <span class="completo-badge">✓ Once completo</span>
+          }
+        </p>
+      </div><!-- /campo-col -->
+
+      <!-- Banquillo -->
+      <div class="banco-col">
+        <h3 class="banco-title">
+          Banquillo
+          <span class="banco-count">({{ banco.length }})</span>
+        </h3>
+
+        @if (banco.length === 0) {
+          <p class="banco-empty">Todos los jugadores están en el campo.</p>
+        } @else {
+          <div class="banco-list">
+            @for (j of banco; track trackByJugador($index, j)) {
+              <div
+                class="banco-jugador"
+                [class.selected]="jugadorSeleccionado?.jugadorId === j.jugadorId"
+                draggable="true"
+                (click)="clickBanco(j)"
+                (dragstart)="onBenchDragStart($event, j)"
+                (dragend)="onDragEnd()"
+              >
+                <div class="bj-row">
+                  <span class="bj-dorsal">{{ j.dorsal ?? '—' }}</span>
+                  <div class="bj-info">
+                    <span class="bj-nombre">{{ j.nombre }} {{ j.apellidos }}</span>
+                    <span class="bj-pos">{{ j.posicion }}</span>
+                  </div>
+                  <div class="bj-dinamica">
+                    <span class="bj-score">{{ getDinamica(j) }}</span>
+                    <span [class]="'bj-trend ' + getTrendClass(j)">{{ getDinamicaTrend(j) }}</span>
+                  </div>
+                </div>
+                <div class="bj-historial">
+                  @for (r of getUltimos5(j); track $index) {
+                    <span [class]="'bj-dot ' + getRatingClass(r)">{{ r }}</span>
+                  }
+                  <span class="bj-hist-label">últ. 5</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (jugadorSeleccionado) {
+          <p class="hint-seleccion">
+            ← Haz clic en un espacio del campo para colocar
+            <strong>{{ jugadorSeleccionado.nombre }}</strong>
+          </p>
+        }
+      </div><!-- /banco-col -->
+
+    </div><!-- /main-layout -->
+
+    <!-- ── Probabilidades ──────────────────────── -->
+    <div class="prob-section">
+      <div class="prob-header">
+        <div>
+          <h3 class="prob-title">
+            Probabilidades
+            @if (rivalNombre) {
+              <span class="prob-vs">vs {{ rivalNombre }}</span>
+            }
+          </h3>
+          <p class="prob-sub">
+            Basado en la dinámica de {{ totalEnCampo }} jugador{{ totalEnCampo !== 1 ? 'es' : '' }} en el campo
+            @if (totalEnCampo < 11) {
+              · <span class="prob-warn">Completa el once para mayor precisión</span>
+            }
+          </p>
+        </div>
+      </div>
+
+      <div class="prob-bars">
+
+        <div class="prob-item">
+          <div class="prob-item-head">
+            <span class="prob-label win">Victoria</span>
+            <span class="prob-pct win">{{ probabilidades.victoria }}%</span>
+          </div>
+          <div class="prob-track">
+            <div class="prob-fill win" [style.width.%]="probabilidades.victoria"></div>
+          </div>
+        </div>
+
+        <div class="prob-item">
+          <div class="prob-item-head">
+            <span class="prob-label draw">Empate</span>
+            <span class="prob-pct draw">{{ probabilidades.empate }}%</span>
+          </div>
+          <div class="prob-track">
+            <div class="prob-fill draw" [style.width.%]="probabilidades.empate"></div>
+          </div>
+        </div>
+
+        <div class="prob-item">
+          <div class="prob-item-head">
+            <span class="prob-label loss">Derrota</span>
+            <span class="prob-pct loss">{{ probabilidades.derrota }}%</span>
+          </div>
+          <div class="prob-track">
+            <div class="prob-fill loss" [style.width.%]="probabilidades.derrota"></div>
+          </div>
+        </div>
+
+      </div><!-- /prob-bars -->
+    </div><!-- /prob-section -->
+
+  }<!-- /else -->
+
+</section>

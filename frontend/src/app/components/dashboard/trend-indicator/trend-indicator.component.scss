@@ -1,0 +1,39 @@
+@import '../../../design/styles.scss';
+
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-xs;
+  font-size: $fs-sm;
+  color: $text-tertiary;
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-pill;
+  padding: 4px 8px;
+  transition: border-color $transition-base, color $transition-base;
+}
+
+.trend-icon {
+  font-size: $fs-sm;
+}
+
+.trend-value {
+  font-family: $font-outfit;
+  font-weight: $fw-bold;
+  letter-spacing: 0.2px;
+}
+
+.trend-label {
+  color: $text-quaternary;
+}
+
+.trend.up {
+  color: $primary;
+  border-color: $primary-transparent-32;
+}
+
+.trend.down {
+  color: $danger;
+  border-color: rgba($danger, 0.3);
+}
+

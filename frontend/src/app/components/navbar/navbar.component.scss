@@ -1,0 +1,63 @@
+@import '../../design/styles.scss';
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(11, 14, 20, 0.85);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid $border-light;
+  padding: 0 $sp-5xl;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: $font-outfit;
+  font-weight: $fw-extrabold;
+  font-size: 19px;
+  color: $text-primary;
+  letter-spacing: -0.5px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+
+  span {
+    font-size: $fs-xs;
+    font-weight: $fw-semibold;
+    letter-spacing: 3px;
+    color: $primary;
+    margin-top: 3px;
+  }
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-sm;
+}
+
+.btn-ghost {
+  @include button-ghost;
+}
+
+.btn-green {
+  background: $primary;
+  border: none;
+  color: #042F2E;
+  font-family: $font-inter;
+  font-size: 13px;
+  font-weight: $fw-bold;
+  padding: 9px 20px;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: background $transition-base, transform $transition-fast;
+
+  &:hover {
+    background: $primary-dark;
+    transform: translateY(-1px);
+  }
+}
+

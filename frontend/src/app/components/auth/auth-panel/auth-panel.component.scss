@@ -1,0 +1,138 @@
+@import '../../../design/styles.scss';
+
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 14, 20, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 140;
+}
+
+.auth-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(440px, 92vw);
+  background: $bg-card;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-2xl;
+  padding: $sp-xl;
+  z-index: 150;
+  box-shadow: $shadow-lg;
+  animation: fadeIn 0.25s ease both;
+}
+
+.auth-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-md;
+}
+
+.auth-eyebrow {
+  font-size: $fs-xs;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: $primary;
+}
+
+.auth-title {
+  font-size: $fs-4xl;
+}
+
+.auth-close {
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  color: $text-tertiary;
+  border-radius: $border-radius-full;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: border-color $transition-base, color $transition-base;
+}
+
+.auth-close:hover {
+  border-color: $primary;
+  color: $text-primary;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $sp-sm;
+  margin: $sp-lg 0;
+}
+
+.auth-tab {
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  color: $text-tertiary;
+  border-radius: $border-radius-lg;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: border-color $transition-base, color $transition-base;
+}
+
+.auth-tab.active {
+  border-color: $primary;
+  color: $text-primary;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-md;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-xs;
+  font-size: $fs-sm;
+  color: $text-tertiary;
+}
+
+.auth-field input {
+  background: $bg-bar;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-lg;
+  padding: 10px 12px;
+  color: $text-primary;
+  font-size: $fs-lg;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-color: $primary;
+}
+
+.auth-error {
+  color: $danger;
+  font-size: $fs-sm;
+}
+
+.auth-submit {
+  @include button-primary;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: $fs-xl;
+}
+
+.auth-hint {
+  margin-top: $sp-md;
+  font-size: $fs-sm;
+  color: $text-quaternary;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+

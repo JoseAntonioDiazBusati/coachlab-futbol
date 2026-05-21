@@ -1,0 +1,240 @@
+<app-dashboard-header></app-dashboard-header>
+
+<section class="liga container">
+
+  <div class="section-head inline">
+    <div>
+      <p class="section-eyebrow">Gestión</p>
+      <h2 class="section-title">Ligas y equipos</h2>
+      <p class="section-sub">Gestiona tus equipos e importa desde football-data.org.</p>
+    </div>
+    <div class="section-actions">
+      <button class="btn-outline" (click)="abrirPanel('api')" [class.active]="panelAbierto === 'api'">
+        + Importar desde API
+      </button>
+      <button class="btn-primary" (click)="abrirPanel('manual')" [class.active]="panelAbierto === 'manual'">
+        + Crear manualmente
+      </button>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="status-banner error">{{ error }}</div>
+  }
+  @if (exito) {
+    <div class="status-banner success">{{ exito }}</div>
+  }
+
+  <!-- ── Equipo activo ───────────────────────── -->
+  @if (equipoActivoActual) {
+    <div class="equipo-activo-card">
+      <div class="activo-label">Equipo activo</div>
+      <div class="activo-info">
+        <span class="activo-nombre">{{ equipoActivoActual.nombre }}</span>
+        @if (equipoActivoActual.categoria) {
+          <span class="equipo-meta">{{ equipoActivoActual.categoria }}</span>
+        }
+        @if (equipoActivoActual.temporada) {
+          <span class="equipo-meta">{{ equipoActivoActual.temporada }}</span>
+        }
+        @if (equipoActivoActual.ciudad) {
+          <span class="equipo-meta">{{ equipoActivoActual.ciudad }}</span>
+        }
+      </div>
+      <button class="btn-ghost-sm" (click)="irAPlantilla()">Ver plantilla →</button>
+    </div>
+  }
+
+  <!-- ── Panel: Importar API ────────────────── -->
+  @if (panelAbierto === 'api') {
+    <div class="panel fade-in">
+
+      <!-- Header with gear icon for advanced URL config -->
+      <div class="panel-header">
+        <h3 class="panel-title">Importar desde football-data.org</h3>
+        <div class="panel-header-end">
+          <button
+            class="btn-icon"
+            (click)="mostrarAvanzado = !mostrarAvanzado"
+            [class.active]="mostrarAvanzado"
+            title="Configuración avanzada de URL"
+          >⚙</button>
+          <button class="btn-close" (click)="cerrarPanel()">&#10005;</button>
+        </div>
+      </div>
+
+      <!-- ── Configuración avanzada (URL base) ──── -->
+      @if (mostrarAvanzado) {
+        <div class="advanced-section fade-in">
+          <div class="field">
+            <label for="liga-api-base">URL base · football-data.org</label>
+            <input
+              id="liga-api-base"
+              type="text"
+              [(ngModel)]="apiBaseInput"
+              [placeholder]="apiBaseActual"
+              autocomplete="off"
+            />
+            <span class="field-hint">
+              Valor activo: <code>{{ apiBaseActual }}</code>.
+              El valor predeterminado es <code>/api/fd</code> (proxy BFF del backend).
+              Cámbialo sólo si usas un proxy diferente.
+              Deja el campo vacío y guarda para restaurar el valor del entorno.
+            </span>
+          </div>
+          <div class="advanced-actions">
+            <button class="btn-text-sm" (click)="resetearApiBase()">↩ Restaurar defecto</button>
+            <button class="btn-outline" (click)="guardarApiBase()">Guardar URL</button>
+          </div>
+        </div>
+      }
+
+      <!-- ── Contenido principal ────────────────── -->
+      @if (guardando) {
+        <p class="loading-msg">{{ loadingMsg }}</p>
+
+      } @else if (apiPaso === 'ligas') {
+
+        @if (competiciones.length === 0) {
+          <!-- Error / empty state with retry -->
+          <div class="panel-empty-state">
+            <p class="panel-empty-msg">
+              No se pudieron cargar las ligas.<br>
+              Comprueba la conexión, la API key y la URL base (⚙).
+            </p>
+            <button class="btn-outline" (click)="cargarCompeticiones()">Reintentar</button>
+          </div>
+        } @else {
+          <div class="step-nav">
+            <span class="step-label">Selecciona una liga · {{ competiciones.length }} disponibles</span>
+          </div>
+          <div class="competicion-grid">
+            @for (comp of competiciones; track comp.id) {
+              <button
+                class="competicion-card"
+                [class.selected]="competicionSeleccionada?.code === comp.code"
+                (click)="seleccionarCompeticion(comp)"
+              >
+                <div class="comp-name">{{ comp.name }}</div>
+                <div class="comp-area">{{ comp.area.name }}</div>
+              </button>
+            }
+          </div>
+        }
+
+      } @else if (apiPaso === 'equipos') {
+        <div class="step-nav">
+          <button class="btn-back-sm" (click)="volverApiPaso()">← Volver</button>
+          <span class="step-label">
+            {{ competicionSeleccionada?.name }} · {{ equiposApi.length }} equipos
+          </span>
+        </div>
+        <div class="equipo-api-grid">
+          @for (eq of equiposApi; track eq.id) {
+            <button
+              class="equipo-api-card"
+              [class.selected]="equipoApiSeleccionado?.id === eq.id"
+              (click)="equipoApiSeleccionado = eq"
+            >
+              <div class="equipo-tla">{{ eq.tla }}</div>
+              <div class="equipo-api-name">{{ eq.shortName || eq.name }}</div>
+            </button>
+          }
+        </div>
+        <div class="panel-actions">
+          <button class="btn-outline" (click)="cerrarPanel()">Cancelar</button>
+          <button
+            class="btn-primary"
+            (click)="confirmarEquipoApi()"
+            [disabled]="!equipoApiSeleccionado || guardando"
+          >
+            Importar equipo
+          </button>
+        </div>
+      }
+
+    </div>
+  }
+
+  <!-- ── Panel: Crear manual ────────────────── -->
+  @if (panelAbierto === 'manual') {
+    <div class="panel fade-in">
+      <div class="panel-header">
+        <h3 class="panel-title">Crear equipo manualmente</h3>
+        <button class="btn-close" (click)="cerrarPanel()">&#10005;</button>
+      </div>
+
+      <div class="fields-row">
+        <div class="field">
+          <label for="m-nombre">Nombre *</label>
+          <input id="m-nombre" type="text" [(ngModel)]="equipoManual.nombre" placeholder="Ej: CD Los Pinos" />
+        </div>
+        <div class="field">
+          <label for="m-categoria">Categoría</label>
+          <input id="m-categoria" type="text" [(ngModel)]="equipoManual.categoria" placeholder="Ej: Regional" />
+        </div>
+      </div>
+      <div class="fields-row">
+        <div class="field">
+          <label for="m-temporada">Temporada</label>
+          <input id="m-temporada" type="text" [(ngModel)]="equipoManual.temporada" placeholder="Ej: 2024/2025" />
+        </div>
+        <div class="field">
+          <label for="m-ciudad">Ciudad</label>
+          <input id="m-ciudad" type="text" [(ngModel)]="equipoManual.ciudad" placeholder="Ej: Sevilla" />
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button class="btn-outline" (click)="cerrarPanel()">Cancelar</button>
+        <button
+          class="btn-primary"
+          (click)="crearEquipoManual()"
+          [disabled]="!equipoManual.nombre.trim() || guardando"
+        >
+          {{ guardando ? 'Creando...' : 'Crear equipo' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Lista de equipos ───────────────────── -->
+  @if (cargando) {
+    <p class="loading-text">Cargando equipos...</p>
+  } @else if (equipos.length === 0) {
+    <div class="empty-state">
+      <p>No hay equipos. Crea uno o impórtalo desde football-data.org.</p>
+    </div>
+  } @else {
+    <div class="equipos-section">
+      <h3 class="subsection-title">Mis equipos</h3>
+      <div class="equipos-grid">
+        @for (eq of equipos; track eq.id) {
+          <div class="equipo-card" [class.is-active]="eq.id === equipoActivoActual?.id">
+            @if (eq.id === equipoActivoActual?.id) {
+              <span class="active-badge">Activo</span>
+            }
+            <div class="eq-nombre">{{ eq.nombre }}</div>
+            <div class="eq-meta-row">
+              @if (eq.categoria) { <span class="eq-meta">{{ eq.categoria }}</span> }
+              @if (eq.temporada) { <span class="eq-meta">{{ eq.temporada }}</span> }
+              @if (eq.ciudad)    { <span class="eq-meta">{{ eq.ciudad }}</span> }
+            </div>
+            <div class="eq-actions">
+              @if (eq.id !== equipoActivoActual?.id) {
+                <button class="btn-ghost-sm" (click)="activarEquipo(eq)">Activar</button>
+              }
+              <button class="btn-ghost-sm" routerLink="/plantilla" [queryParams]="{equipoId: eq.id}">
+                Plantilla
+              </button>
+              @if (eq.id !== equipoActivoActual?.id) {
+                <button class="btn-ghost-danger" (click)="eliminarEquipo(eq)">Eliminar</button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+</section>

@@ -1,0 +1,85 @@
+@import '../../../design/styles.scss';
+
+.match-card {
+  background: $bg-card;
+  border: 1px solid $border-dark;
+  border-radius: $border-radius-xl;
+  padding: $sp-lg $sp-xl;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-lg;
+  transition: border-color $transition-medium, transform $transition-base;
+}
+
+.match-card:hover {
+  border-color: $primary;
+  transform: translateY(-2px);
+}
+
+.match-date {
+  font-size: $fs-xs;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: $text-quaternary;
+  margin-bottom: $sp-xs;
+}
+
+.match-opponent {
+  font-family: $font-outfit;
+  font-size: $fs-3xl;
+  color: $text-primary;
+  margin-bottom: 2px;
+}
+
+.match-venue {
+  font-size: $fs-sm;
+  color: $text-tertiary;
+}
+
+.match-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $sp-sm;
+}
+
+.match-score {
+  font-family: $font-outfit;
+  font-size: $fs-4xl;
+  font-weight: $fw-bold;
+  color: $text-primary;
+}
+
+.match-result {
+  font-size: $fs-sm;
+  padding: 4px 10px;
+  border-radius: $border-radius-pill;
+  background: rgba($warning, 0.15);
+  color: $warning;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.match-result.win {
+  background: $primary-transparent-20;
+  color: $primary;
+}
+
+.match-result.loss {
+  background: rgba($danger, 0.15);
+  color: $danger;
+}
+
+@media (max-width: 768px) {
+  .match-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .match-right {
+    width: 100%;
+    align-items: flex-start;
+  }
+}
+

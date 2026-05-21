@@ -1,0 +1,137 @@
+@import '../../design/styles.scss';
+
+.footer {
+  background: $bg;
+  border-top: 1px solid #1A2030;
+  padding: 44px $sp-5xl 28px;
+}
+
+.footer-in {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: $sp-5xl;
+  margin-bottom: $sp-4xl;
+}
+
+.footer-brand {
+  .logo {
+    font-family: $font-outfit;
+    font-weight: $fw-extrabold;
+    color: $text-primary;
+    letter-spacing: -0.5px;
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+
+    span {
+      font-size: $fs-xs;
+      font-weight: $fw-semibold;
+      letter-spacing: 3px;
+      color: $primary;
+      margin-top: 3px;
+    }
+  }
+
+  p {
+    font-size: $fs-lg;
+    color: $text-quaternary;
+    line-height: 1.7;
+    margin-top: $sp-sm;
+    max-width: 230px;
+  }
+}
+
+.fcol {
+  h4 {
+    font-family: $font-outfit;
+    font-size: $fs-sm;
+    font-weight: $fw-semibold;
+    color: $text-primary;
+    margin-bottom: $sp-lg;
+    letter-spacing: 0.3px;
+  }
+
+  ul {
+    list-style: none;
+  }
+
+  ul li {
+    margin-bottom: 9px;
+
+    a {
+      font-size: $fs-lg;
+      color: $text-secondary;
+      text-decoration: none;
+      transition: color $transition-base;
+
+      &:hover {
+        color: $text-primary;
+      }
+    }
+  }
+}
+
+.footer-bottom {
+  border-top: 1px solid #1A2030;
+  padding-top: $sp-xl;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-copy {
+  font-size: $fs-sm;
+  color: $text-muted;
+}
+
+.footer-legal {
+  display: flex;
+  gap: $sp-2xl;
+
+  a {
+    font-size: $fs-sm;
+    color: $text-muted;
+    text-decoration: none;
+    transition: color $transition-base;
+
+    &:hover {
+      color: $text-secondary;
+    }
+  }
+}
+
+// ============================================================================
+// RESPONSIVE
+// ============================================================================
+@media (max-width: 1024px) {
+  .footer-top {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .footer {
+    padding: 44px $sp-lg 28px;
+  }
+
+  .footer-top {
+    grid-template-columns: 1fr;
+    gap: $sp-3xl;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    gap: $sp-lg;
+    text-align: center;
+  }
+
+  .footer-legal {
+    justify-content: center;
+  }
+}
+

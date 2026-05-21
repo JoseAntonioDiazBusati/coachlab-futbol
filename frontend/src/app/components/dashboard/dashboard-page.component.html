@@ -1,0 +1,154 @@
+<div class="dashboard" [class.embedded]="embedded">
+  @if (showNavbar) {
+    <app-dashboard-header></app-dashboard-header>
+  }
+
+  <section class="dash-hero container">
+    <div class="dash-main">
+      <p class="dash-eyebrow">Resumen del equipo</p>
+
+      @if (equipos.length > 1) {
+        <div class="equipo-bar">
+          <select
+            class="equipo-select"
+            [ngModel]="equipoSeleccionado?.id"
+            (ngModelChange)="seleccionarEquipoPorId($event)"
+          >
+            @for (eq of equipos; track eq.id) {
+              <option [value]="eq.id">
+                {{ eq.nombre }} ({{ eq.categoria || 'Sin categoría' }})
+              </option>
+            }
+          </select>
+        </div>
+      }
+
+      <h1 class="dash-title">{{ teamName }}</h1>
+      <p class="dash-sub">{{ season }}</p>
+
+      @if (error) {
+        <div class="status-banner error">
+          <span>{{ error }}</span>
+          <button class="btn-retry" (click)="reintentar()">Reintentar</button>
+        </div>
+      }
+
+      @if (cargando) {
+        <p class="loading-text">Cargando datos del equipo...</p>
+      }
+
+      @if (!cargando && !error && equipoSeleccionado) {
+        <div class="dash-meta">
+          @if (resumen && resumen.rachaReciente && resumen.rachaReciente.length > 0) {
+            <span class="dash-pill">
+              Racha: {{ resumen.rachaReciente.slice(0, 5).join(' - ') }}
+            </span>
+          }
+          <span class="dash-pill">Posición: —</span>
+          <span class="dash-pill">{{ nextMatch }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="dash-summary">
+      @if (!cargando && equipoSeleccionado) {
+        <div class="summary-card">
+          <div class="summary-top">
+            <p class="summary-label">Índice de rendimiento</p>
+            <app-trend-indicator
+              [direction]="trendSummary.direction"
+              [value]="trendSummary.value"
+              [label]="trendSummary.label"
+            ></app-trend-indicator>
+          </div>
+          <div class="summary-score">
+            {{ resumen ? (resumen.ire | number:'1.0-0') : '—' }}<sup>/10</sup>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span class="summary-value">
+                {{ resumen ? (resumen.totalGolesAFavor - resumen.totalGolesEnContra >= 0 ? '+' : '') + (resumen.totalGolesAFavor - resumen.totalGolesEnContra) : '—' }}
+              </span>
+              <span class="summary-text">Dif. goles</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-value">
+                {{ resumen && resumen.totalPartidos > 0 ? (resumen.mediaGolesAFavor | number:'1.1-1') : '—' }}
+              </span>
+              <span class="summary-text">GF / partido</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-value">
+                {{ resumen && resumen.totalPartidos > 0 ? (resumen.mediaGolesEnContra | number:'1.1-1') : '—' }}
+              </span>
+              <span class="summary-text">GC / partido</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  @if (!cargando && !error && equipoSeleccionado) {
+    <section class="dash-kpis container">
+      <div class="section-head">
+        <h3 class="section-title">KPIs principales</h3>
+        <p class="section-sub">Lectura rápida del estado competitivo del equipo.</p>
+      </div>
+      <div class="kpi-grid">
+        @for (kpi of kpis; track kpi.title) {
+          <app-kpi-card
+            [title]="kpi.title"
+            [value]="kpi.value"
+            [helper]="kpi.helper"
+            [delta]="kpi.delta"
+            [deltaLabel]="kpi.deltaLabel"
+          ></app-kpi-card>
+        }
+      </div>
+    </section>
+
+    <section class="dash-lower container">
+      <div class="performance">
+        <div class="section-head inline">
+          <div>
+            <h3 class="section-title">Evolución mensual</h3>
+            <p class="section-sub">Índice compuesto de rendimiento por mes.</p>
+          </div>
+          <app-trend-indicator
+            [direction]="trendSummary.direction"
+            [value]="trendSummary.value"
+            [label]="trendSummary.label"
+          ></app-trend-indicator>
+        </div>
+        <div class="performance-card">
+          <app-performance-chart [points]="performancePoints"></app-performance-chart>
+        </div>
+      </div>
+
+      <div class="recent">
+        <div class="section-head">
+          <h3 class="section-title">Últimos partidos</h3>
+          <p class="section-sub">Resultados recientes con impacto inmediato.</p>
+        </div>
+        @if (recentMatches.length > 0) {
+          <div class="match-list">
+            @for (match of recentMatches; track match.opponent) {
+              <app-match-card [match]="match"></app-match-card>
+            }
+          </div>
+        } @else {
+          <p class="empty-text">No hay partidos registrados aún.</p>
+        }
+      </div>
+    </section>
+  }
+
+  @if (!cargando && !error && !equipoSeleccionado) {
+    <section class="dash-empty container">
+      <div class="empty-state">
+        <p>No hay equipos registrados. Crea un equipo desde la página de Plantilla para empezar.</p>
+      </div>
+    </section>
+  }
+</div>
