@@ -1,5 +1,6 @@
 package com.coachlab.coachlab.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,12 +20,14 @@ public class EstadisticaJugador {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Relación con el jugador
+    // Relación con el jugador — excluida de JSON para evitar ciclos
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "jugador_id", nullable = false)
     private Jugador jugador;
 
-    // Relación con el partido
+    // Relación con el partido — excluida de JSON
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "partido_id", nullable = false)
     private Partido partido;
