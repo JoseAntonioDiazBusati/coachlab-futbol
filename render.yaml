@@ -2,14 +2,17 @@
 # https://render.com/docs/blueprint-spec
 
 services:
+  # ── Backend Spring Boot ────────────────────────────────────────────────────
   - type: private-service
     name: backend
     runtime: docker
+    # Contexto = raíz del repo; el Dockerfile usa ARG SRC_PATH para las rutas.
     dockerfilePath: ./backend/coachlab-springboot/coachlab/Dockerfile
-    dockerContext: ./backend/coachlab-springboot/coachlab
+    dockerContext: .
     envVars:
       - fromGroup: coachlab-secrets
 
+  # ── Frontend Angular + Nginx ───────────────────────────────────────────────
   - type: web
     name: frontend
     runtime: docker
