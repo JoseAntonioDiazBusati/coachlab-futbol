@@ -19,8 +19,8 @@ FROM nginx:alpine AS runtime
 # Eliminar la configuración por defecto de Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copiar configuración como plantilla — nginx sustituye ${BACKEND_HOST} en arranque
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Copiar configuración de nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copiar los artefactos del build (Angular 17+ genera en /browser)
 COPY --from=builder /app/dist/coachlab-futbol/browser /usr/share/nginx/html
