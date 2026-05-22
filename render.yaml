@@ -1,22 +1,25 @@
 # CoachLab Futbol — Render Blueprint
 # https://render.com/docs/blueprint-spec
+#
+# Las imágenes se construyen en GitHub Actions y se suben a Docker Hub.
+# Render simplemente hace pull de la imagen ya compilada.
+# El deploy se dispara via webhook (RENDER_DEPLOY_HOOK_* secrets en GitHub).
 
 services:
   # ── Backend Spring Boot ────────────────────────────────────────────────────
   - type: private-service
     name: backend
-    runtime: docker
-    # Contexto = raíz del repo; el Dockerfile usa ARG SRC_PATH para las rutas.
-    dockerfilePath: ./backend/coachlab-springboot/coachlab/Dockerfile
-    dockerContext: .
+    runtime: image
+    image:
+      url: docker.io/joseantoniodiazbusati/coachlab-backend:latest
     envVars:
       - fromGroup: coachlab-secrets
 
   # ── Frontend Angular + Nginx ───────────────────────────────────────────────
   - type: web
     name: frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
+    runtime: image
+    image:
+      url: docker.io/joseantoniodiazbusati/coachlab-frontend:latest
     envVars:
       - fromGroup: coachlab-secrets
