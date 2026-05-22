@@ -1,9 +1,12 @@
 services:
 
   backend:
+    image: joseantoniodiazbusati/coachlab-backend:latest
     build:
-      context: ./backend/coachlab-springboot/coachlab
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/coachlab-springboot/coachlab/Dockerfile
+      args:
+        SRC_PATH: backend/coachlab-springboot/coachlab
     container_name: coachlab-backend
     restart: unless-stopped
     environment:
@@ -23,6 +26,7 @@ services:
       start_period: 60s
 
   frontend:
+    image: joseantoniodiazbusati/coachlab-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
