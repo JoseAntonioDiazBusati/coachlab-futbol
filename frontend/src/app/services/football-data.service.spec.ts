@@ -66,7 +66,7 @@ describe('FootballDataService (BFF proxy)', () => {
 
   it('setApiKey() es un no-op (no lanza ni hace peticiones)', () => {
     service.setApiKey('cualquier-valor');
-    httpMock.expectNone(/.*/);
+    httpMock.expectNone((req) => true);
     expect(service.getApiKey()).toBeNull(); // sigue siendo null
   });
 
@@ -97,7 +97,7 @@ describe('FootballDataService (BFF proxy)', () => {
     httpMock.expectOne(`${BASE}/competiciones`).flush(
       { message: 'Forbidden' }, { status: 403, statusText: 'Forbidden' },
     );
-    expect(errorMsg).toContain('403');
+    expect(errorMsg).toContain('Sesión expirada');
   });
 
   it('propaga el error 429 (rate-limit) de /api/fd/competiciones', () => {
@@ -115,7 +115,7 @@ describe('FootballDataService (BFF proxy)', () => {
     httpMock.expectOne(`${BASE}/competiciones`).flush(
       { message: 'Not Found' }, { status: 404, statusText: 'Not Found' },
     );
-    expect(errorMsg).toContain('404');
+    expect(errorMsg).toContain('Recurso no encontrado');
   });
 
   it('propaga el error de red (status 0) de /api/fd/competiciones', () => {
@@ -124,7 +124,7 @@ describe('FootballDataService (BFF proxy)', () => {
     httpMock
       .expectOne(`${BASE}/competiciones`)
       .error(new ProgressEvent('error'), { status: 0 });
-    expect(errorMsg.toLowerCase()).toContain('red');
+    expect(errorMsg.toLowerCase()).toContain('conectar');
   });
 
   // ── listarEquipos ────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ describe('FootballDataService (BFF proxy)', () => {
     httpMock.expectOne(`${BASE}/competiciones/INVALID/equipos`).flush(
       {}, { status: 404, statusText: 'Not Found' },
     );
-    expect(errorMsg).toContain('404');
+    expect(errorMsg).toContain('Recurso no encontrado');
   });
 
   // ── listarPlantillaEquipo ────────────────────────────────────────────────
@@ -178,7 +178,7 @@ describe('FootballDataService (BFF proxy)', () => {
     httpMock.expectOne(`${BASE}/teams/99999`).flush(
       {}, { status: 404, statusText: 'Not Found' },
     );
-    expect(errorMsg).toContain('404');
+    expect(errorMsg).toContain('Recurso no encontrado');
   });
 
   // ── listarPartidosEquipo ─────────────────────────────────────────────────
@@ -281,6 +281,6 @@ describe('FootballDataService (BFF proxy)', () => {
     httpMock.expectOne((r) => r.url === `${BASE}/competiciones/PD/scorers`).flush(
       {}, { status: 403, statusText: 'Forbidden' },
     );
-    expect(errorMsg).toContain('403');
+    expect(errorMsg).toContain('Sesión expirada');
   });
 });
