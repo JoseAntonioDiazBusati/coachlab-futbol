@@ -4,12 +4,17 @@ FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /app
 
+# Las rutas son relativas al Docker build context.
+# En Render el context es la raíz del repo; en local puede ser este directorio.
+# ARG permite sobreescribir la ruta base si es necesario.
+ARG SRC_PATH=backend/coachlab-springboot/coachlab
+
 # Copiar pom.xml primero para aprovechar la caché de capas de dependencias
-COPY pom.xml .
+COPY ${SRC_PATH}/pom.xml .
 RUN mvn dependency:go-offline -B -q
 
 # Copiar el código fuente y compilar
-COPY src ./src
+COPY ${SRC_PATH}/src ./src
 RUN mvn package -DskipTests -B -q
 
 # ── Etapa 2: Runtime con JRE mínimo ──────────────────────────────────────────
