@@ -22,4 +22,5 @@ RUN chown -R coachlab:coachlab /app /data
 USER coachlab
 
 EXPOSE 8080
+
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
