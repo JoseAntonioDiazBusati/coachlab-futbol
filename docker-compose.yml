@@ -3,10 +3,8 @@ services:
   backend:
     image: joseantoniodiazbusati/coachlab-backend:latest
     build:
-      context: .
-      dockerfile: backend/coachlab-springboot/coachlab/Dockerfile
-      args:
-        SRC_PATH: backend/coachlab-springboot/coachlab
+      context: ./backend/coachlab-springboot/coachlab
+      dockerfile: Dockerfile
     container_name: coachlab-backend
     restart: unless-stopped
     environment:

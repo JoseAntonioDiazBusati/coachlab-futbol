@@ -8,7 +8,7 @@ services:
     runtime: docker
     # Contexto = raíz del repo; el Dockerfile usa ARG SRC_PATH para las rutas.
     dockerfilePath: ./backend/coachlab-springboot/coachlab/Dockerfile
-    dockerContext: .
+    dockerContext: ./backend/coachlab-springboot/coachlab
     envVars:
       - fromGroup: coachlab-secrets
 
