@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PartidoRepository extends JpaRepository<Partido, Long> {
@@ -16,6 +17,12 @@ public interface PartidoRepository extends JpaRepository<Partido, Long> {
     List<Partido> findByEquipoIdOrderByFechaDesc(Long equipoId);
 
     List<Partido> findByEquipoIdAndResultado(Long equipoId, ResultadoPartido resultado);
+
+    // Idempotencia de importaciones FD: evita duplicar el mismo match en un equipo.
+    Optional<Partido> findByExternalIdAndEquipoId(Long externalId, Long equipoId);
+
+    // Backfill de migración: partidos previos a la columna `origen`.
+    List<Partido> findByOrigenIsNull();
 
     // Últimos N partidos del equipo (para calcular la racha)
     @Query(value = "SELECT p FROM Partido p WHERE p.equipo.id = :equipoId ORDER BY p.fecha DESC")
