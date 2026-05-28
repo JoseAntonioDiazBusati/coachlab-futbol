@@ -13,6 +13,13 @@
     </div>
     <div class="section-actions">
       <button
+        class="btn-outline"
+        (click)="abrirImportador()"
+        [disabled]="!equipo || cargando"
+      >
+        Importar de football-data
+      </button>
+      <button
         class="btn-primary"
         (click)="abrirFormulario()"
         [disabled]="!equipo || cargando"
@@ -84,6 +91,14 @@
             <span class="resultado-badge" [class]="resultadoClass(p.resultado)">
               {{ resultadoLabel(p.resultado) }}
             </span>
+            @if (p.origen === 'FOOTBALL_DATA') {
+              <span class="meta-origen" title="Importado de football-data.org">API</span>
+            }
+            <a
+              class="btn-detalle-card"
+              [routerLink]="['/partidos', p.id]"
+              title="Ver detalle"
+            >Detalle</a>
             <button
               class="btn-delete-card"
               (click)="eliminarPartido(p.id)"
@@ -295,6 +310,52 @@
             }
           </div>
         </div>
+
+        <!-- ── Bloque 4: eventos por jugador ──────────── -->
+        @if (jugadoresSeleccionadosList.length > 0) {
+          <div class="form-section">
+            <p class="form-section-label">Eventos por jugador</p>
+
+            @if (avisoGolesIncoherentes) {
+              <div class="status-banner warning">
+                Los goles asignados ({{ golesAsignados }}) superan el marcador del
+                equipo ({{ nuevo.golesNuestros }}). Puedes guardar igualmente.
+              </div>
+            }
+
+            <div class="stats-table">
+              <div class="stats-head">
+                <span class="stats-col-jugador">Jugador</span>
+                <span title="Goles">G</span>
+                <span title="Asistencias">A</span>
+                <span title="Minutos jugados">Min</span>
+                <span title="Tarjetas amarillas">🟨</span>
+                <span title="Tarjetas rojas">🟥</span>
+              </div>
+
+              @for (fila of filasEventos; track fila.jugador.jugadorId) {
+                <div class="stats-row">
+                  <span class="stats-col-jugador">
+                    @if (fila.jugador.dorsal !== undefined) {
+                      <span class="chip-dorsal">{{ fila.jugador.dorsal }}</span>
+                    }
+                    {{ fila.jugador.nombre }}
+                  </span>
+                  <input type="number" min="0" [(ngModel)]="fila.stats.goles"
+                         [ngModelOptions]="{ standalone: true }" />
+                  <input type="number" min="0" [(ngModel)]="fila.stats.asistencias"
+                         [ngModelOptions]="{ standalone: true }" />
+                  <input type="number" min="0" max="120" [(ngModel)]="fila.stats.minutosJugados"
+                         [ngModelOptions]="{ standalone: true }" />
+                  <input type="number" min="0" [(ngModel)]="fila.stats.tarjetasAmarillas"
+                         [ngModelOptions]="{ standalone: true }" />
+                  <input type="number" min="0" [(ngModel)]="fila.stats.tarjetasRojas"
+                         [ngModelOptions]="{ standalone: true }" />
+                </div>
+              }
+            </div>
+          </div>
+        }
       }
 
       <!-- ── Error de formulario ────────────────────── -->
@@ -316,6 +377,82 @@
           {{ guardando ? 'Guardando…' : 'Guardar partido' }}
         </button>
       </div>
+
+    </div><!-- /modal-card -->
+  </div><!-- /modal-overlay -->
+}
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- Modal: Importar partido de football-data.org     -->
+<!-- ════════════════════════════════════════════════ -->
+@if (mostrarImportador) {
+  <div class="modal-overlay" (click)="cerrarImportador()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <h3 class="modal-title">Importar partido (football-data.org)</h3>
+        <button class="modal-close" (click)="cerrarImportador()" aria-label="Cerrar">✕</button>
+      </div>
+
+      @if (importPaso !== 'ligas') {
+        <button type="button" class="link-btn" (click)="volverImportPaso()">← Volver</button>
+      }
+
+      @if (importError) {
+        <div class="status-banner error">{{ importError }}</div>
+      }
+
+      @if (importCargando) {
+        <div class="loading-state">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+          <p class="loading-msg">Cargando…</p>
+        </div>
+      } @else {
+
+        <!-- Paso 1: competición -->
+        @if (importPaso === 'ligas') {
+          <p class="form-section-label">Elige una competición</p>
+          <div class="import-list">
+            @for (c of competiciones; track c.id) {
+              <button type="button" class="import-item" (click)="seleccionarCompeticionFd(c)">
+                {{ c.name }} <span class="import-item-sub">{{ c.area.name }}</span>
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Paso 2: equipo -->
+        @if (importPaso === 'equipos') {
+          <p class="form-section-label">Elige tu equipo en {{ competicionSel?.name }}</p>
+          <div class="import-list">
+            @for (e of equiposApi; track e.id) {
+              <button type="button" class="import-item" (click)="seleccionarEquipoFd(e)">
+                {{ e.name }} <span class="import-item-sub">{{ e.tla }}</span>
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Paso 3: partido -->
+        @if (importPaso === 'partidos') {
+          <p class="form-section-label">Elige el partido a importar</p>
+          @if (partidosApi.length === 0) {
+            <p class="section-sub">No hay partidos finalizados disponibles para este equipo.</p>
+          }
+          <div class="import-list">
+            @for (m of partidosApi; track m.id) {
+              <button type="button" class="import-item" (click)="seleccionarPartidoFd(m)">
+                <span class="import-match-teams">
+                  {{ m.homeTeam.shortName ?? m.homeTeam.name }}
+                  {{ marcadorFd(m) }}
+                  {{ m.awayTeam.shortName ?? m.awayTeam.name }}
+                </span>
+                <span class="import-item-sub">{{ m.utcDate.split('T')[0] }}</span>
+              </button>
+            }
+          </div>
+        }
+      }
 
     </div><!-- /modal-card -->
   </div><!-- /modal-overlay -->

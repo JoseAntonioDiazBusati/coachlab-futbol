@@ -1,0 +1,153 @@
+@import '../../design/styles.scss';
+
+:host {
+  display: block;
+  background: $bg;
+  color: $text-primary;
+  min-height: 100vh;
+}
+
+.detalle {
+  padding: $sp-xl;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.section-head { margin-bottom: $sp-lg; }
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: $fs-lg;
+}
+
+.status-banner {
+  padding: $sp-md $sp-lg;
+  border-radius: $border-radius-md;
+  font-size: $fs-lg;
+  margin-bottom: $sp-lg;
+
+  &.error {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: $danger;
+  }
+}
+
+.loading-state { text-align: center; padding: $sp-xl; }
+
+.partido-card {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: $border-radius-lg;
+  padding: $sp-xl;
+  margin-bottom: $sp-xl;
+}
+
+.partido-meta {
+  display: flex;
+  align-items: center;
+  gap: $sp-sm;
+  flex-wrap: wrap;
+  font-size: $fs-md;
+  opacity: 0.85;
+  margin-bottom: $sp-lg;
+}
+
+.meta-origen {
+  font-size: $fs-xs;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: $border-radius-sm;
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+.resultado-badge {
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: $border-radius-pill;
+  font-size: $fs-md;
+
+  &.win  { background: rgba(34, 197, 94, 0.15);  color: #16a34a; }
+  &.loss { background: rgba(239, 68, 68, 0.15);  color: $danger; }
+  &.draw { background: rgba(148, 163, 184, 0.2); color: #64748b; }
+}
+
+.partido-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-xl;
+}
+
+.score-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-xs;
+
+  &.our-side .score-team-name { font-weight: 700; }
+}
+
+.score-goals { font-size: $fs-5xl; font-weight: 700; }
+.score-divider { font-size: $fs-3xl; opacity: 0.4; }
+
+.observaciones {
+  margin-top: $sp-lg;
+  font-size: $fs-lg;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.section-title { font-size: $fs-2xl; margin-bottom: $sp-md; }
+.section-sub { opacity: 0.7; }
+
+/* ── Tabla de estadísticas ─────────────────── */
+.stats-table { display: flex; flex-direction: column; gap: $sp-xs; }
+
+.stats-head,
+.stats-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) repeat(6, 52px);
+  gap: $sp-sm;
+  align-items: center;
+  text-align: center;
+}
+
+.stats-head {
+  font-size: $fs-md;
+  font-weight: 600;
+  opacity: 0.7;
+
+  .stats-col-jugador { text-align: left; }
+}
+
+.stats-row {
+  padding: $sp-xs 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  font-size: $fs-lg;
+
+  .stats-col-jugador {
+    display: flex;
+    align-items: center;
+    gap: $sp-xs;
+    text-align: left;
+  }
+
+  .stats-pos { font-size: $fs-md; opacity: 0.55; }
+}
+
+.chip-dorsal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: $border-radius-sm;
+  background: rgba(148, 163, 184, 0.2);
+  font-size: $fs-xs;
+  font-weight: 700;
+}

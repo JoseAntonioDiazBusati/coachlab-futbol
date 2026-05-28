@@ -1,0 +1,92 @@
+<app-dashboard-header></app-dashboard-header>
+
+<section class="detalle container">
+
+  <div class="section-head">
+    <a class="link-btn" routerLink="/partidos">← Volver a partidos</a>
+  </div>
+
+  @if (error) {
+    <div class="status-banner error">{{ error }}</div>
+  }
+
+  @if (cargando) {
+    <div class="loading-state">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      <p class="loading-msg">Cargando partido…</p>
+    </div>
+  } @else if (partido) {
+
+    <!-- Cabecera del partido -->
+    <div class="partido-card">
+      <div class="partido-meta">
+        <span class="meta-competicion">{{ partido.competicion || 'Sin competición' }}</span>
+        <span class="meta-sep">·</span>
+        <span class="meta-fecha">{{ fechaFormateada(partido.fecha) }}</span>
+        <span class="meta-sep">·</span>
+        <span class="meta-condicion">{{ condicionLabel(partido.esLocal) }}</span>
+        @if (partido.origen === 'FOOTBALL_DATA') {
+          <span class="meta-origen" title="Importado de football-data.org">API</span>
+        }
+        <span class="resultado-badge" [class]="resultadoClass(partido.resultado)">
+          {{ resultadoLabel(partido.resultado) }}
+        </span>
+      </div>
+
+      <div class="partido-score">
+        <div class="score-side" [class.our-side]="partido.esLocal">
+          <span class="score-team-name">{{ partido.esLocal ? equipo?.nombre : partido.rival }}</span>
+          <span class="score-goals">{{ partido.esLocal ? golesNuestros : golesRivales }}</span>
+        </div>
+        <span class="score-divider">—</span>
+        <div class="score-side right" [class.our-side]="!partido.esLocal">
+          <span class="score-goals">{{ partido.esLocal ? golesRivales : golesNuestros }}</span>
+          <span class="score-team-name">{{ partido.esLocal ? partido.rival : equipo?.nombre }}</span>
+        </div>
+      </div>
+
+      @if (partido.observaciones) {
+        <p class="observaciones">{{ partido.observaciones }}</p>
+      }
+    </div>
+
+    <!-- Estadísticas por jugador -->
+    <h3 class="section-title">Estadísticas por jugador</h3>
+
+    @if (partido.estadisticas.length === 0) {
+      <p class="section-sub">
+        Este partido no tiene estadísticas por jugador registradas.
+      </p>
+    } @else {
+      <div class="stats-table">
+        <div class="stats-head">
+          <span class="stats-col-jugador">Jugador</span>
+          <span title="Goles">G</span>
+          <span title="Asistencias">A</span>
+          <span title="Minutos jugados">Min</span>
+          <span title="Tarjetas amarillas">🟨</span>
+          <span title="Tarjetas rojas">🟥</span>
+          <span title="Impacto">IRE</span>
+        </div>
+        @for (e of partido.estadisticas; track e.jugadorId) {
+          <div class="stats-row">
+            <span class="stats-col-jugador">
+              @if (e.dorsal !== undefined && e.dorsal !== null) {
+                <span class="chip-dorsal">{{ e.dorsal }}</span>
+              }
+              {{ e.nombre }}
+              <span class="stats-pos">{{ e.posicion }}</span>
+            </span>
+            <span>{{ e.goles }}</span>
+            <span>{{ e.asistencias }}</span>
+            <span>{{ e.minutosJugados }}</span>
+            <span>{{ e.tarjetasAmarillas }}</span>
+            <span>{{ e.tarjetasRojas }}</span>
+            <span>{{ e.impacto }}</span>
+          </div>
+        }
+      </div>
+    }
+  }
+
+</section>
