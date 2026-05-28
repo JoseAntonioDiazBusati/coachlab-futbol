@@ -81,6 +81,20 @@ public class FootballDataProxyService {
                 .block();
     }
 
+    /**
+     * Detalle completo de un partido por su id en football-data.org.
+     *
+     * <p>El endpoint {@code /matches/{id}} devuelve {@code bookings},
+     * {@code substitutions} y {@code lineup} <strong>solo en tiers de pago</strong>;
+     * en plan gratuito estos campos vienen vacíos o ausentes, por lo que el
+     * detalle se limitará al marcador.</p>
+     */
+    public FdMatchDTO getMatch(Long matchId) {
+        return fetch("/matches/{id}", matchId)
+                .map(n -> mapOne(n, FdMatchDTO.class))
+                .block();
+    }
+
     public List<FdGoleadorDTO> listarGoleadores(String code, Integer season, int limit) {
         return webClient.get()
                 .uri(ub -> {
@@ -122,6 +136,18 @@ public class FootballDataProxyService {
                        })
                 )
                 .bodyToMono(JsonNode.class);
+    }
+
+    /** Mapea un nodo JSON único (no array) al tipo indicado. Devuelve null si el nodo es nulo. */
+    private <T> T mapOne(JsonNode node, Class<T> cls) {
+        if (node == null || node.isNull()) return null;
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        try {
+            return mapper.treeToValue(node, cls);
+        } catch (Exception e) {
+            log.error("Error mapeando respuesta FD a {}: {}", cls.getSimpleName(), e.getMessage());
+            return null;
+        }
     }
 
     private <T> List<T> mapList(JsonNode array, Class<T> cls) {
