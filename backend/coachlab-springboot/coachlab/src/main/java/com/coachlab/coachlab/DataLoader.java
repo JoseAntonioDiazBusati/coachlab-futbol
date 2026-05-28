@@ -37,6 +37,16 @@ public class DataLoader implements CommandLineRunner {
             System.out.println("👤 Usuario demo creado: demo@coachlab.test / coachlab123");
         }
 
+        // ── Backfill de migración: partidos previos a la columna `origen` ──
+        // Las filas anteriores quedan con origen = NULL al añadir la columna;
+        // se marcan como MANUAL (origen por defecto de un partido registrado a mano).
+        var sinOrigen = partidoRepo.findByOrigenIsNull();
+        if (!sinOrigen.isEmpty()) {
+            sinOrigen.forEach(p -> p.setOrigen(OrigenPartido.MANUAL));
+            partidoRepo.saveAll(sinOrigen);
+            System.out.println("🔧 Backfill: " + sinOrigen.size() + " partido(s) marcados como MANUAL.");
+        }
+
         // ── Datos de ejemplo (sólo si la DB está vacía) ───────
         if (equipoRepo.count() > 0) {
             System.out.println("\n✅ CoachLab Fútbol arrancado correctamente.");
