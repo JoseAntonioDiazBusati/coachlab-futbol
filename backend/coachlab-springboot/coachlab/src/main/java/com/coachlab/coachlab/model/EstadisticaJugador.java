@@ -48,6 +48,9 @@ public class EstadisticaJugador {
     @Builder.Default
     private Integer tarjetasRojas = 0;
 
+    @Builder.Default
+    private boolean esTitular = false;
+
     /**
      * Calcula el índice de impacto del jugador en este partido.
      * Fórmula básica del MVP:

@@ -115,11 +115,15 @@ public class FdMatchMapper {
                     return e;
                 });
 
-        // Titulares: minutos base 90.
+        // Titulares: minutos base 90 y flag esTitular.
         if (nuestro != null && nuestro.getLineup() != null) {
             for (FdMatchDTO.LineupPlayer p : nuestro.getLineup()) {
                 Long localId = fdToLocal.get(p.getId());
-                if (localId != null) getOrCreate.apply(localId).setMinutosJugados(90);
+                if (localId != null) {
+                    EstadisticaInputDTO e = getOrCreate.apply(localId);
+                    e.setMinutosJugados(90);
+                    e.setEsTitular(true);
+                }
             }
         }
 

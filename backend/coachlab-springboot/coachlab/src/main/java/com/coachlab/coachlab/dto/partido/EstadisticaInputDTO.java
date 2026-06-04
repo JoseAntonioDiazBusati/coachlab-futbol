@@ -30,4 +30,6 @@ public class EstadisticaInputDTO {
 
     @Min(value = 0, message = "Las tarjetas rojas no pueden ser negativas")
     private Integer tarjetasRojas = 0;
+
+    private boolean esTitular = false;
 }

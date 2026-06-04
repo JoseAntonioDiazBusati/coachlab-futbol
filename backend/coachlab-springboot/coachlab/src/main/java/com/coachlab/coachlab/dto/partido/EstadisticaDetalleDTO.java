@@ -23,6 +23,7 @@ public class EstadisticaDetalleDTO {
     private Integer minutosJugados;
     private Integer tarjetasAmarillas;
     private Integer tarjetasRojas;
+    private boolean esTitular;
     private double impacto;
 
     /** Construye el DTO de salida a partir de la entidad y su jugador. */
@@ -39,6 +40,7 @@ public class EstadisticaDetalleDTO {
                 .minutosJugados(e.getMinutosJugados())
                 .tarjetasAmarillas(e.getTarjetasAmarillas())
                 .tarjetasRojas(e.getTarjetasRojas())
+                .esTitular(e.isEsTitular())
                 .impacto(Math.round(e.calcularImpacto() * 100.0) / 100.0)
                 .build();
     }

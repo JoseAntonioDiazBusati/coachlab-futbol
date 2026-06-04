@@ -116,7 +116,7 @@ describe('PartidoRegistradoService (HTTP)', () => {
       estadisticas: [
         { jugadorId: 10, nombre: 'Saka', posicion: 'Delantero', dorsal: 7,
           goles: 1, asistencias: 0, minutosJugados: 90,
-          tarjetasAmarillas: 0, tarjetasRojas: 0, impacto: 3 },
+          tarjetasAmarillas: 0, tarjetasRojas: 0, esTitular: true, impacto: 3 },
       ],
     };
 
@@ -140,7 +140,7 @@ describe('PartidoRegistradoService (HTTP)', () => {
       competicion: 'Liga', golesNuestros: 2, golesRivales: 1,
       resultado: 'VICTORIA', jugadoresIds: [10],
       estadisticas: [{ jugadorId: 10, goles: 1, asistencias: 0,
-        minutosJugados: 90, tarjetasAmarillas: 0, tarjetasRojas: 0 }],
+        minutosJugados: 90, tarjetasAmarillas: 0, tarjetasRojas: 0, esTitular: true }],
     }).subscribe();
 
     const req = httpMock.expectOne(`${base}/1/partidos/full`);
@@ -588,5 +588,53 @@ describe('RegistrarPartidoPageComponent', () => {
     stubEquiposConJugadores();
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     expect(comp.condicionLabel(false)).toBe('Visitante');
+  });
+
+  // ── esTitular (§8 del plan) ───────────────────────
+  it('statsVacias() initializes esTitular = true when selecting a jugador', () => {
+    stubEquiposConJugadores();
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.toggleJugador(10);
+    expect(comp.estadisticasParticipacion.get(10)?.esTitular).toBe(true);
+  });
+
+  it('guardar() includes esTitular in the payload', () => {
+    stubEquiposConJugadores();
+    const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
+
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.equipo = EQUIPO_MOCK;
+    comp.jugadores = [JUGADOR_A];
+    comp.toggleJugador(JUGADOR_A.jugadorId);
+    comp.nuevo = {
+      rival: 'Madrid', fecha: '2024-03-15', esLocal: true,
+      competicion: 'Liga', golesNuestros: 1, golesRivales: 0,
+      jugadoresSeleccionados: new Set([JUGADOR_A.jugadorId]),
+    };
+    comp.guardar();
+
+    const payload = spy.mock.calls[0][1];
+    expect(payload.estadisticas?.[0].esTitular).toBe(true);
+  });
+
+  it('toggleDetalle() expands the partido and collapses on second call', () => {
+    stubEquiposConJugadores([PARTIDO_MOCK]);
+    vi.spyOn(TestBed.inject(PartidoRegistradoService), 'obtenerDetalle')
+      .mockReturnValue(of({
+        id: 1, fecha: '2024-03-15', rival: 'Real Madrid', esLocal: true,
+        golesAFavor: 2, golesEnContra: 1, competicion: 'Liga',
+        origen: 'MANUAL', externalId: null, resultado: 'VICTORIA',
+        observaciones: null, estadisticas: [],
+      }));
+
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.equipo = EQUIPO_MOCK;
+
+    comp.toggleDetalle(PARTIDO_MOCK);
+    expect(comp.partidoExpandidoId).toBe(PARTIDO_MOCK.id);
+
+    comp.toggleDetalle(PARTIDO_MOCK);
+    expect(comp.partidoExpandidoId).toBeNull();
   });
 });

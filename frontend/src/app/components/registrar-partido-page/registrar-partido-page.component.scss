@@ -111,12 +111,41 @@
 
 .btn-detalle-card {
   font-size: $fs-md;
-  text-decoration: none;
   color: #2563eb;
   padding: 2px 8px;
   border-radius: $border-radius-sm;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: $font-inter;
 
   &:hover { background: rgba(59, 130, 246, 0.12); }
+}
+
+// ── Detalle expandido inline ──────────────────────
+.partido-detalle-inline {
+  padding: $sp-lg $sp-xl;
+  border-top: 1px solid $border-dark-transparent;
+  animation: fadeIn 0.2s ease;
+
+  .stats-head,
+  .stats-row {
+    grid-template-columns: minmax(140px, 1fr) 40px repeat(6, 1fr);
+  }
+}
+
+.stats-pos {
+  font-size: $fs-xs;
+  color: $text-quaternary;
+  margin-left: $sp-xs;
+}
+
+.titular-badge {
+  font-size: $fs-md;
+  text-align: center;
+  color: $text-muted;
+
+  &.is-titular { color: $primary; font-weight: $fw-semibold; }
 }
 
 /* ── Tabla de eventos por jugador ─────────────────── */
@@ -129,7 +158,7 @@
 .stats-head,
 .stats-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) repeat(5, 56px);
+  grid-template-columns: minmax(120px, 1fr) 60px repeat(5, 56px);
   gap: $sp-sm;
   align-items: center;
 }

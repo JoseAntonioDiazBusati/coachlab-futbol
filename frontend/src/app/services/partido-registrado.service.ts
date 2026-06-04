@@ -16,6 +16,7 @@ export interface EstadisticaParticipacion {
   minutosJugados: number;
   tarjetasAmarillas: number;
   tarjetasRojas: number;
+  esTitular: boolean;
 }
 
 /** Estadística enriquecida tal como la devuelve el backend (incluye datos del jugador). */
@@ -178,6 +179,7 @@ export class PartidoRegistradoService {
       minutosJugados: e.minutosJugados,
       tarjetasAmarillas: e.tarjetasAmarillas,
       tarjetasRojas: e.tarjetasRojas,
+      esTitular: e.esTitular ?? false,
     }));
     return {
       id: d.id,

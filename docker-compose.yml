@@ -1,5 +1,25 @@
 services:
 
+  mysql:
+    image: mysql:8
+    container_name: coachlab-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-coachlab}
+      MYSQL_USER: ${DB_USER:-coachlab}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-coachlab}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   backend:
     image: joseantoniodiazbusati/coachlab-backend:latest
     build:
@@ -11,10 +31,15 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       JWT_SECRET: ${JWT_SECRET}
       FD_API_KEY: ${FD_API_KEY}
-      H2_PATH: /data/coachlabdb
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-coachlab}
+      DB_USER: ${DB_USER:-coachlab}
+      DB_PASSWORD: ${DB_PASSWORD:-coachlab}
       COACHLAB_CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:80
-    volumes:
-      - db-data:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - internal
     healthcheck:

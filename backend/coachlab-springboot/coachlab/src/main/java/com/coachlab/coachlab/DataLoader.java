@@ -36,6 +36,15 @@ public class DataLoader implements CommandLineRunner {
                     .build());
             System.out.println("👤 Usuario demo creado: demo@coachlab.test / coachlab123");
         }
+        Usuario demo = usuarioRepo.findByEmail("demo@coachlab.test").orElseThrow();
+
+        // ── Backfill de migración: equipos previos a la columna `usuario_id` ──
+        var equiposSinDueno = equipoRepo.findByUsuarioIsNull();
+        if (!equiposSinDueno.isEmpty()) {
+            equiposSinDueno.forEach(e -> e.setUsuario(demo));
+            equipoRepo.saveAll(equiposSinDueno);
+            System.out.println("🔧 Backfill: " + equiposSinDueno.size() + " equipo(s) asignados al usuario demo.");
+        }
 
         // ── Backfill de migración: partidos previos a la columna `origen` ──
         // Las filas anteriores quedan con origen = NULL al añadir la columna;
@@ -61,6 +70,7 @@ public class DataLoader implements CommandLineRunner {
                 .categoria("Amateur Senior")
                 .temporada("2024/2025")
                 .ciudad("Madrid")
+                .usuario(demo)
                 .build());
 
         // ── Jugadores ─────────────────────────────────────────

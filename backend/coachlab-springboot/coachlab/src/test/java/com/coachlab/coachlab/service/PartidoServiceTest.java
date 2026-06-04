@@ -6,14 +6,20 @@ import com.coachlab.coachlab.dto.partido.PartidoDetalleDTO;
 import com.coachlab.coachlab.model.Equipo;
 import com.coachlab.coachlab.model.Jugador;
 import com.coachlab.coachlab.model.OrigenPartido;
+import com.coachlab.coachlab.model.Usuario;
 import com.coachlab.coachlab.repository.EquipoRepository;
 import com.coachlab.coachlab.repository.JugadorRepository;
 import com.coachlab.coachlab.repository.PartidoRepository;
+import com.coachlab.coachlab.repository.UsuarioRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,26 +32,45 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 class PartidoServiceTest {
 
     @Autowired private PartidoService partidoService;
     @Autowired private EquipoRepository equipoRepository;
     @Autowired private JugadorRepository jugadorRepository;
     @Autowired private PartidoRepository partidoRepository;
+    @Autowired private UsuarioRepository usuarioRepository;
 
+    private Usuario usuario;
     private Equipo equipo;
     private Jugador delantero;
     private Jugador medio;
 
     @BeforeEach
     void setUp() {
+        usuario = usuarioRepository.save(Usuario.builder()
+                .nombre("Entrenador Test").email("test-partido@coachlab.test")
+                .password("x").build());
+        autenticar(usuario);
+
         equipo = equipoRepository.save(Equipo.builder()
-                .nombre("Equipo Test").categoria("Amateur").temporada("2025/2026").build());
+                .nombre("Equipo Test").categoria("Amateur").temporada("2025/2026")
+                .usuario(usuario).build());
 
         delantero = jugadorRepository.save(Jugador.builder()
                 .nombre("Goleador").posicion("Delantero").dorsal(9).equipo(equipo).build());
         medio = jugadorRepository.save(Jugador.builder()
                 .nombre("Creador").posicion("Centrocampista").dorsal(8).equipo(equipo).build());
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void autenticar(Usuario u) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(u.getEmail(), null, List.of()));
     }
 
     private PartidoConEstadisticasDTO partidoBase() {
@@ -107,7 +132,7 @@ class PartidoServiceTest {
 
     @Test
     void crearConEstadisticas_jugadorDeOtroEquipo_lanzaError() {
-        Equipo otro = equipoRepository.save(Equipo.builder().nombre("Otro").build());
+        Equipo otro = equipoRepository.save(Equipo.builder().nombre("Otro").usuario(usuario).build());
         Jugador ajeno = jugadorRepository.save(Jugador.builder()
                 .nombre("Ajeno").posicion("Defensa").equipo(otro).build());
 

@@ -6,13 +6,16 @@ import com.coachlab.coachlab.dto.partido.PartidoConEstadisticasDTO;
 import com.coachlab.coachlab.model.Equipo;
 import com.coachlab.coachlab.model.Jugador;
 import com.coachlab.coachlab.model.OrigenPartido;
+import com.coachlab.coachlab.model.Usuario;
 import com.coachlab.coachlab.repository.EquipoRepository;
 import com.coachlab.coachlab.repository.JugadorRepository;
+import com.coachlab.coachlab.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -25,11 +28,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 class FdMatchMapperTest {
 
     @Autowired private FdMatchMapper mapper;
     @Autowired private EquipoRepository equipoRepository;
     @Autowired private JugadorRepository jugadorRepository;
+    @Autowired private UsuarioRepository usuarioRepository;
 
     // ids FD de "nuestro" equipo y rival
     private static final long NUESTRO_FD = 100L;
@@ -44,7 +49,9 @@ class FdMatchMapperTest {
 
     @BeforeEach
     void setUp() {
-        equipo = equipoRepository.save(Equipo.builder().nombre("Nuestro").build());
+        Usuario usuario = usuarioRepository.save(Usuario.builder()
+                .nombre("Entrenador").email("test-fd@coachlab.test").password("x").build());
+        equipo = equipoRepository.save(Equipo.builder().nombre("Nuestro").usuario(usuario).build());
         titular = jugadorRepository.save(Jugador.builder()
                 .nombre("Titular").posicion("Delantero").externalId(FD_TITULAR).equipo(equipo).build());
         suplente = jugadorRepository.save(Jugador.builder()

@@ -1,6 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
@@ -8,6 +7,7 @@ import { JugadorService, PlantillaJugador } from '../../services/jugador.service
 import {
   PartidoRegistradoService,
   PartidoRegistrado,
+  PartidoDetalle,
   EstadisticaParticipacion,
   calcularResultado,
 } from '../../services/partido-registrado.service';
@@ -32,7 +32,7 @@ export interface NuevoPartidoForm {
 @Component({
   selector: 'app-registrar-partido-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, DashboardHeaderComponent],
+  imports: [FormsModule, DashboardHeaderComponent],
   templateUrl: './registrar-partido-page.component.html',
   styleUrl: './registrar-partido-page.component.scss',
 })
@@ -54,6 +54,12 @@ export class RegistrarPartidoPageComponent implements OnInit {
   mostrarFormulario = false;
   guardando = false;
   errorFormulario: string | null = null;
+
+  // ── Detalle inline ────────────────────────────────
+  partidoExpandidoId: number | null = null;
+  detallesCache = new Map<number, PartidoDetalle>();
+  cargandoDetalle = false;
+  errorDetalle: string | null = null;
 
   nuevo: NuevoPartidoForm = this.formularioVacio();
 
@@ -333,6 +339,7 @@ export class RegistrarPartidoPageComponent implements OnInit {
       minutosJugados: 0,
       tarjetasAmarillas: 0,
       tarjetasRojas: 0,
+      esTitular: true,
     };
   }
 
@@ -451,6 +458,27 @@ export class RegistrarPartidoPageComponent implements OnInit {
   // ── Track fns ─────────────────────────────────────
   trackById(_: number, p: PartidoRegistrado): number      { return p.id; }
   trackByJugador(_: number, j: PlantillaJugador): number  { return j.jugadorId; }
+
+  // ── Detalle inline ────────────────────────────────
+  toggleDetalle(p: PartidoRegistrado): void {
+    if (this.partidoExpandidoId === p.id) {
+      this.partidoExpandidoId = null;
+      return;
+    }
+    this.partidoExpandidoId = p.id;
+    if (this.detallesCache.has(p.id)) return;
+    if (!this.equipo) return;
+    this.cargandoDetalle = true;
+    this.errorDetalle = null;
+    this.partidoService.obtenerDetalle(this.equipo.id, p.id).subscribe({
+      next: (d) => { this.detallesCache.set(p.id, d); this.cargandoDetalle = false; },
+      error: (err: Error) => { this.errorDetalle = err?.message ?? 'No se pudo cargar el detalle.'; this.cargandoDetalle = false; },
+    });
+  }
+
+  detalleExpandido(id: number): PartidoDetalle | null {
+    return this.detallesCache.get(id) ?? null;
+  }
 
   // ── Private ───────────────────────────────────────
   private formularioVacio(): NuevoPartidoForm {

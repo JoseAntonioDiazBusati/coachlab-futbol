@@ -568,9 +568,6 @@ describe('LigaPageComponent', () => {
       expect(saka!.goles).toBe(5);
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       expect(saka!.asistencias).toBe(3);
-      // GOLEADOR_MOCK.playedMatches = 10 → partidosTitular should be 10
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      expect(saka!.partidosTitular).toBe(10);
     });
 
     it('still succeeds and closes panel when goleadores API fails', () => {

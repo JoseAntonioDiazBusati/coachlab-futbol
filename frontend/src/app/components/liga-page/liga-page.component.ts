@@ -390,13 +390,12 @@ export class LigaPageComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: ({ equipo, plantilla, partidos, goleadores }) => {
-          // ── Build scorer lookup: playerId → { goles, asistencias, partidosTitular } ──
-          const scorerMap = new Map<number, { goles: number; asistencias: number; partidosTitular: number }>();
+          // ── Build scorer lookup: playerId → { goles, asistencias } ──
+          const scorerMap = new Map<number, { goles: number; asistencias: number }>();
           for (const g of goleadores) {
             scorerMap.set(g.player.id, {
-              goles:           g.goals,
-              asistencias:     g.assists        ?? 0,
-              partidosTitular: g.playedMatches,
+              goles:       g.goals,
+              asistencias: g.assists ?? 0,
             });
           }
 
@@ -417,10 +416,9 @@ export class LigaPageComponent implements OnInit, OnDestroy {
                   ? new Date().getFullYear() -
                     new Date(j.dateOfBirth).getFullYear()
                   : undefined,
-                goles:             scorer?.goles           ?? 0,
-                asistencias:       scorer?.asistencias     ?? 0,
-                partidosTitular:   scorer?.partidosTitular ?? 0,
-                tarjetasAmarillas: match?.amarillas         ?? 0,
+                goles:             scorer?.goles       ?? 0,
+                asistencias:       scorer?.asistencias ?? 0,
+                tarjetasAmarillas: match?.amarillas    ?? 0,
                 tarjetasRojas:     match?.rojas             ?? 0,
                 minutos:           match?.minutos           ?? 0,
               };

@@ -45,7 +45,7 @@ export class LandingPageComponent {
 
   onAuthenticated() {
     this.authOpen = false;
-    const destino = this.equipoActivo.tieneEquipo() ? '/dashboard' : '/setup';
+    const destino = this.equipoActivo.tieneEquipo() ? '/dashboard' : '/ligas';
     this.router.navigate([destino]);
   }
 }

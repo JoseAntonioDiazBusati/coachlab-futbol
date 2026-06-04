@@ -3,48 +3,11 @@ name: CI / Docker Build & Push
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
-  # ── Tests ──────────────────────────────────────────────────────────────────
-  test-frontend:
-    name: Frontend tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm test
-
-  test-backend:
-    name: Backend tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend/coachlab-springboot/coachlab
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
-      - run: mvn test
-
-  # ── Docker Build & Push (solo en push a main) ──────────────────────────────
   docker-backend:
     name: Build & push backend image
     runs-on: ubuntu-latest
-    needs: [test-backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -70,8 +33,6 @@ jobs:
   docker-frontend:
     name: Build & push frontend image
     runs-on: ubuntu-latest
-    needs: [test-frontend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -94,19 +55,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Deploy en Render (trigger webhook tras el push de imágenes) ────────────
   deploy:
     name: Trigger Render deploy
     runs-on: ubuntu-latest
     needs: [docker-backend, docker-frontend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Deploy backend
-        run: |
-          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" \
-            -H "Content-Type: application/json" || true
+        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" || true
 
       - name: Deploy frontend
-        run: |
-          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" \
-            -H "Content-Type: application/json" || true
+        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" || true

@@ -30,6 +30,7 @@ public class PartidoService {
 
     @Transactional(readOnly = true)
     public List<Partido> listarPorEquipo(Long equipoId) {
+        equipoService.buscarPorId(equipoId);   // valida pertenencia del equipo
         return partidoRepository.findByEquipoIdOrderByFechaDesc(equipoId);
     }
 
@@ -158,6 +159,7 @@ public class PartidoService {
                     .minutosJugados(e.getMinutosJugados() != null ? e.getMinutosJugados() : 0)
                     .tarjetasAmarillas(e.getTarjetasAmarillas() != null ? e.getTarjetasAmarillas() : 0)
                     .tarjetasRojas(e.getTarjetasRojas() != null ? e.getTarjetasRojas() : 0)
+                    .esTitular(e.isEsTitular())
                     .build();
             partido.getEstadisticasJugadores().add(stat);
         }

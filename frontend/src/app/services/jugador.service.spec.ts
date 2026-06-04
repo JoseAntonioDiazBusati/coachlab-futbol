@@ -12,9 +12,7 @@ function makePayload(overrides: {
   asistencias?: number;
   tarjetasAmarillas?: number;
   tarjetasRojas?: number;
-  paradasLimpias?: number;
-  golesEncajados?: number;
-  penaltisParados?: number;
+  minutos?: number;
 } = {}) {
   return {
     posicion: 'Delantero',
@@ -75,33 +73,19 @@ describe('calcularIRE()', () => {
     expect(defensa).toBe(12);
   });
 
-  // ── Goalkeeper ───────────────────────────────────────────────────────────
+  // ── Goalkeeper (uses same formula as field players) ──────────────────────
 
   it('returns 0 for a goalkeeper with no stats', () => {
     expect(calcularIRE(makePayload({ posicion: 'Portero' }))).toBe(0);
   });
 
-  it('clean sheets contribute 3 points each for goalkeepers', () => {
-    expect(calcularIRE(makePayload({ posicion: 'Portero', paradasLimpias: 5 }))).toBe(15);
+  it('goalkeeper goals count the same as field player goals', () => {
+    expect(calcularIRE(makePayload({ posicion: 'Portero', goles: 5 }))).toBe(15);
   });
 
-  it('penalty saves contribute 2 points each for goalkeepers', () => {
-    expect(calcularIRE(makePayload({ posicion: 'Portero', penaltisParados: 3 }))).toBe(6);
-  });
-
-  it('goals conceded deduct 0.3 each for goalkeepers', () => {
-    // 10 clean sheets (30) - 20 goals conceded (6) = 24
-    expect(calcularIRE(makePayload({ posicion: 'Portero', paradasLimpias: 10, golesEncajados: 20 }))).toBe(24);
-  });
-
-  it('goalkeeper yellow cards still deduct 0.5 each', () => {
-    expect(calcularIRE(makePayload({ posicion: 'Portero', paradasLimpias: 10, tarjetasAmarillas: 2 }))).toBe(29);
-  });
-
-  it('goals field is NOT counted for goalkeepers', () => {
-    // Goalkeeper who scored a goal — goals should not be counted in their IRE
-    const ireGk = calcularIRE(makePayload({ posicion: 'Portero', goles: 5 }));
-    expect(ireGk).toBe(0);  // goals don't count for goalkeeper formula
+  it('goalkeeper yellow cards deduct 0.5 each', () => {
+    // 3 goals × 3 - 2 amarillas × 0.5 = 9 - 1 = 8
+    expect(calcularIRE(makePayload({ posicion: 'Portero', goles: 3, tarjetasAmarillas: 2 }))).toBe(8);
   });
 });
 
