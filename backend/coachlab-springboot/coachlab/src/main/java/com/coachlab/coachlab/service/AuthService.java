@@ -5,10 +5,12 @@ import com.coachlab.coachlab.dto.LoginRequest;
 import com.coachlab.coachlab.dto.RegisterRequest;
 import com.coachlab.coachlab.model.Usuario;
 import com.coachlab.coachlab.repository.UsuarioRepository;
+import com.coachlab.coachlab.security.CustomUserDetails;
 import com.coachlab.coachlab.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -36,10 +38,12 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
-        authManager.authenticate(
+        // authenticate() ya carga el usuario (vía UserDetailsServiceImpl) y verifica
+        // la contraseña con BCrypt. Leemos el Usuario del principal para no repetir
+        // la consulta a la base de datos.
+        Authentication auth = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
-        Usuario usuario = usuarioRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new IllegalStateException("Usuario no encontrado."));
+        Usuario usuario = ((CustomUserDetails) auth.getPrincipal()).getUsuario();
         String token = tokenProvider.generateToken(usuario.getEmail());
         return new AuthResponse(token, usuario.getEmail(), usuario.getNombre());
     }

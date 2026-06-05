@@ -6,7 +6,14 @@ import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 /**
- * Campos necesarios para calcular el IRE.
+ * Campos necesarios para calcular el IRE en cliente (local preview).
+ * Fórmula simplificada; el ranking definitivo lo devuelve el backend.
+ *
+ * NOTA (PLAN-RETROALIMENTACION §2.3): el plan proponía eliminar este cálculo en
+ * cliente. Se conserva de forma deliberada como parte de la arquitectura
+ * dual-write: ofrece un impacto optimista inmediato tras crear/editar un
+ * jugador. NO es la fuente de verdad — `listarPlantilla()` siempre refresca con
+ * el ranking del backend, que sobrescribe este valor en la siguiente carga.
  */
 export interface IREInput {
   posicion: string;
@@ -15,30 +22,15 @@ export interface IREInput {
   tarjetasAmarillas: number;
   tarjetasRojas: number;
   minutos?: number;
-  paradasLimpias?: number;
-  golesEncajados?: number;
-  penaltisParados?: number;
 }
 
-/**
- * Índice de Rendimiento del Equipo (IRE).
- *
- *   · Portero:  PC×3 + PP×2 − GE×0.3 − TA×0.5 − TR×2
- *   · Campo:    Goles×3 + Asistencias×2 + Min/90×0.5 − TA×0.5 − TR×2
- */
 export function calcularIRE(j: IREInput): number {
   const raw =
-    j.posicion === 'Portero'
-      ? (j.paradasLimpias  ?? 0) *  3
-      + (j.penaltisParados ?? 0) *  2
-      - (j.golesEncajados  ?? 0) *  0.3
-      - j.tarjetasAmarillas      *  0.5
-      - j.tarjetasRojas          *  2
-      : j.goles                  *  3
-      + j.asistencias            *  2
-      + (j.minutos        ?? 0) / 90 * 0.5
-      - j.tarjetasAmarillas      *  0.5
-      - j.tarjetasRojas          *  2;
+    j.goles            *  3
+    + j.asistencias    *  2
+    + (j.minutos ?? 0) / 90 * 0.5
+    - j.tarjetasAmarillas    *  0.5
+    - j.tarjetasRojas        *  2;
   return Math.round(raw * 10) / 10;
 }
 
@@ -54,11 +46,8 @@ export interface PlantillaJugador {
   minutos: number;
   tarjetasAmarillas: number;
   tarjetasRojas: number;
+  titularidades?: number;
   impacto: number;
-  paradasLimpias?: number;
-  golesEncajados?: number;
-  penaltisParados?: number;
-  partidosTitular?: number;
 }
 
 export interface CrearJugadorPayload {
@@ -72,7 +61,6 @@ export interface CrearJugadorPayload {
   minutos?: number;
   tarjetasAmarillas?: number;
   tarjetasRojas?: number;
-  partidosTitular?: number;
 }
 
 interface JugadorData {
@@ -138,10 +126,6 @@ export class JugadorService {
     const asistencias       = payload.asistencias        ?? 0;
     const tarjetasAmarillas = payload.tarjetasAmarillas  ?? 0;
     const tarjetasRojas     = payload.tarjetasRojas      ?? 0;
-    const esPortero         = payload.posicion === 'Portero';
-    const paradasLimpias    = esPortero ? 0 : undefined;
-    const golesEncajados    = esPortero ? 0 : undefined;
-    const penaltisParados   = esPortero ? 0 : undefined;
 
     const nuevoJugador: PlantillaJugador = {
       jugadorId: maxId + 1,
@@ -159,12 +143,7 @@ export class JugadorService {
         posicion: payload.posicion,
         goles, asistencias, tarjetasAmarillas, tarjetasRojas,
         minutos: payload.minutos ?? 0,
-        paradasLimpias, golesEncajados, penaltisParados,
       }),
-      paradasLimpias,
-      golesEncajados,
-      penaltisParados,
-      partidosTitular: !esPortero ? (payload.partidosTitular ?? 0) : undefined,
     };
 
     data[equipoId].push(nuevoJugador);
@@ -253,10 +232,6 @@ export class JugadorService {
       const asistencias       = payload.asistencias        ?? 0;
       const tarjetasAmarillas = payload.tarjetasAmarillas  ?? 0;
       const tarjetasRojas     = payload.tarjetasRojas      ?? 0;
-      const esPortero         = payload.posicion === 'Portero';
-      const paradasLimpias    = esPortero ? 0 : undefined;
-      const golesEncajados    = esPortero ? 0 : undefined;
-      const penaltisParados   = esPortero ? 0 : undefined;
 
       return {
         jugadorId: ++id,
@@ -274,12 +249,7 @@ export class JugadorService {
           posicion: payload.posicion,
           goles, asistencias, tarjetasAmarillas, tarjetasRojas,
           minutos: payload.minutos ?? 0,
-          paradasLimpias, golesEncajados, penaltisParados,
         }),
-        paradasLimpias,
-        golesEncajados,
-        penaltisParados,
-        partidosTitular: !esPortero ? (payload.partidosTitular ?? 0) : undefined,
       };
     });
     data[equipoId] = nuevos;

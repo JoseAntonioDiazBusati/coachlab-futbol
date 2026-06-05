@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -36,6 +37,19 @@ public class Partido {
 
     private Integer golesAFavor;
     private Integer golesEnContra;
+
+    private String competicion;         // "Liga", "Copa", "LaLiga", amistoso…
+
+    // Origen del partido — MANUAL por defecto. @ColumnDefault fija el default
+    // a nivel BD para que las filas existentes no queden con NULL al migrar.
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'MANUAL'")
+    @Column(nullable = false)
+    @Builder.Default
+    private OrigenPartido origen = OrigenPartido.MANUAL;
+
+    // Id del match en football-data.org (solo si origen = FOOTBALL_DATA)
+    private Long externalId;
 
     // Resultado calculado automáticamente
     @Enumerated(EnumType.STRING)

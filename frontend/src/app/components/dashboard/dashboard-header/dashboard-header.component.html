@@ -16,6 +16,137 @@
     }
   </div>
   <div class="nav-actions">
+    <button class="nav-link btn-perfil" (click)="abrirPerfil()">
+      @if (authService.currentUser$ | async; as user) {
+        {{ user.nombre }}
+      } @else {
+        Mi perfil
+      }
+    </button>
     <button class="btn-ghost" (click)="logout()">Cerrar sesión</button>
   </div>
 </nav>
+
+<!-- ── Modal de perfil ─────────────────────────────────────────────────── -->
+@if (modalAbierto) {
+  <div class="modal-overlay" (click)="cerrarPerfil()">
+    <div class="modal-card perfil-modal" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Cuenta</p>
+          <h3 class="modal-title">Mi perfil</h3>
+        </div>
+        <button class="modal-close" (click)="cerrarPerfil()" aria-label="Cerrar">✕</button>
+      </div>
+
+      @if (error) {
+        <div class="status-banner error">{{ error }}</div>
+      }
+
+      @if (cargando) {
+        <div class="loading-state">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+          <p class="loading-msg">Cargando perfil…</p>
+        </div>
+      } @else if (perfil) {
+
+        <!-- Datos básicos -->
+        <div class="perfil-card">
+          <h4 class="card-title">Datos básicos</h4>
+          <p class="card-sub">Miembro desde {{ fechaFormateada(perfil.fechaRegistro) }} · {{ perfil.totalEquipos }} equipo(s)</p>
+
+          <label class="field">
+            <span>Nombre</span>
+            <input type="text" [(ngModel)]="datos.nombre" autocomplete="name" />
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" [(ngModel)]="datos.email" autocomplete="email" />
+          </label>
+          <p class="field-hint">Si cambias el email tendrás que iniciar sesión de nuevo.</p>
+
+          @if (exitoDatos) { <div class="status-banner success">{{ exitoDatos }}</div> }
+          @if (errorDatos) { <div class="status-banner error">{{ errorDatos }}</div> }
+
+          <div class="card-actions">
+            <button class="btn-primary" (click)="guardarDatos()" [disabled]="!datosValidos || guardandoDatos">
+              {{ guardandoDatos ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="perfil-card">
+          <h4 class="card-title">Seguridad</h4>
+
+          <label class="field">
+            <span>Contraseña actual</span>
+            <input type="password" [(ngModel)]="pass.actual" autocomplete="current-password" />
+          </label>
+          <label class="field">
+            <span>Nueva contraseña</span>
+            <input type="password" [(ngModel)]="pass.nueva" autocomplete="new-password" />
+          </label>
+          <label class="field">
+            <span>Confirmar nueva contraseña</span>
+            <input type="password" [(ngModel)]="pass.confirmacion" autocomplete="new-password" />
+          </label>
+
+          @if (pass.nueva && pass.nueva.length < 6) {
+            <p class="field-hint warn">Mínimo 6 caracteres.</p>
+          }
+          @if (pass.confirmacion && pass.nueva !== pass.confirmacion) {
+            <p class="field-hint warn">Las contraseñas no coinciden.</p>
+          }
+
+          @if (exitoPass) { <div class="status-banner success">{{ exitoPass }}</div> }
+          @if (errorPass) { <div class="status-banner error">{{ errorPass }}</div> }
+
+          <div class="card-actions">
+            <button class="btn-primary" (click)="cambiarPassword()" [disabled]="!passValido || guardandoPass">
+              {{ guardandoPass ? 'Cambiando…' : 'Cambiar contraseña' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Zona peligrosa -->
+        <div class="perfil-card danger">
+          <h4 class="card-title">Zona peligrosa</h4>
+          <p class="card-sub">
+            Eliminar tu cuenta borrará permanentemente tus {{ perfil.totalEquipos }} equipo(s),
+            sus jugadores, partidos y estadísticas. Esta acción no se puede deshacer.
+          </p>
+          <div class="card-actions">
+            <button class="btn-danger" (click)="abrirEliminar()">Eliminar mi cuenta</button>
+          </div>
+        </div>
+      }
+
+    </div>
+  </div>
+}
+
+<!-- Modal de confirmación de borrado de cuenta -->
+@if (mostrarEliminar) {
+  <div class="modal-overlay" (click)="cerrarEliminar()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Eliminar cuenta</h3>
+        <button class="modal-close" (click)="cerrarEliminar()" aria-label="Cerrar">✕</button>
+      </div>
+      <p class="card-sub">Confirma tu contraseña para eliminar definitivamente tu cuenta y todos tus datos.</p>
+      <label class="field">
+        <span>Contraseña</span>
+        <input type="password" [(ngModel)]="passwordEliminar" autocomplete="current-password" />
+      </label>
+      @if (errorEliminar) { <div class="status-banner error">{{ errorEliminar }}</div> }
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="cerrarEliminar()">Cancelar</button>
+        <button class="btn-danger" (click)="confirmarEliminar()" [disabled]="!passwordEliminar || eliminando">
+          {{ eliminando ? 'Eliminando…' : 'Eliminar definitivamente' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

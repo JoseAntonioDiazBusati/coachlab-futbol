@@ -7,7 +7,7 @@ export const teamGuard: CanActivateFn = () => {
   const router = inject(Router);
 
   if (!equipoActivo.tieneEquipo()) {
-    return router.createUrlTree(['/setup']);
+    return router.createUrlTree(['/ligas']);
   }
   return true;
 };

@@ -22,6 +22,7 @@ public class JugadorService {
 
     @Transactional(readOnly = true)
     public List<Jugador> listarPorEquipo(Long equipoId) {
+        equipoService.buscarPorId(equipoId);   // valida pertenencia del equipo
         return jugadorRepository.findByEquipoId(equipoId);
     }
 
@@ -56,6 +57,7 @@ public class JugadorService {
      */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> rankingImpacto(Long equipoId) {
+        equipoService.buscarPorId(equipoId);   // valida pertenencia del equipo
         List<Jugador> jugadores = jugadorRepository.findByEquipoId(equipoId);
 
         return jugadores.stream().map(j -> {
@@ -65,23 +67,25 @@ public class JugadorService {
                     .mapToDouble(s -> s.calcularImpacto())
                     .sum();
 
-            Integer goles       = estadisticaRepository.totalGolesByJugador(j.getId());
-            Integer asistencias = estadisticaRepository.totalAsistenciasByJugador(j.getId());
-            Integer minutos     = estadisticaRepository.totalMinutosByJugador(j.getId());
-            Integer amarillas   = estadisticaRepository.totalTarjetasAmarillasByJugador(j.getId());
-            Integer rojas       = estadisticaRepository.totalTarjetasRojasByJugador(j.getId());
+            Integer goles         = estadisticaRepository.totalGolesByJugador(j.getId());
+            Integer asistencias   = estadisticaRepository.totalAsistenciasByJugador(j.getId());
+            Integer minutos       = estadisticaRepository.totalMinutosByJugador(j.getId());
+            Integer amarillas     = estadisticaRepository.totalTarjetasAmarillasByJugador(j.getId());
+            Integer rojas         = estadisticaRepository.totalTarjetasRojasByJugador(j.getId());
+            Long    titularidades = estadisticaRepository.totalTitularidadesByJugador(j.getId());
 
             Map<String, Object> entrada = new LinkedHashMap<>();
-            entrada.put("jugadorId",   j.getId());
-            entrada.put("nombre",      j.getNombre() + " " + (j.getApellidos() != null ? j.getApellidos() : ""));
-            entrada.put("posicion",    j.getPosicion());
-            entrada.put("dorsal",      j.getDorsal());
-            entrada.put("goles",       goles       != null ? goles       : 0);
-            entrada.put("asistencias", asistencias != null ? asistencias : 0);
-            entrada.put("minutos",     minutos     != null ? minutos     : 0);
-            entrada.put("tarjetasAmarillas", amarillas != null ? amarillas : 0);
-            entrada.put("tarjetasRojas",     rojas     != null ? rojas     : 0);
-            entrada.put("impacto",     Math.round(impactoTotal * 100.0) / 100.0);
+            entrada.put("jugadorId",      j.getId());
+            entrada.put("nombre",         j.getNombre() + " " + (j.getApellidos() != null ? j.getApellidos() : ""));
+            entrada.put("posicion",       j.getPosicion());
+            entrada.put("dorsal",         j.getDorsal());
+            entrada.put("goles",          goles         != null ? goles         : 0);
+            entrada.put("asistencias",    asistencias   != null ? asistencias   : 0);
+            entrada.put("minutos",        minutos       != null ? minutos       : 0);
+            entrada.put("tarjetasAmarillas", amarillas  != null ? amarillas     : 0);
+            entrada.put("tarjetasRojas",  rojas         != null ? rojas         : 0);
+            entrada.put("titularidades",  titularidades != null ? titularidades : 0L);
+            entrada.put("impacto",        Math.round(impactoTotal * 100.0) / 100.0);
             return entrada;
         })
         .sorted(Comparator.comparingDouble(m -> -((Double) m.get("impacto"))))

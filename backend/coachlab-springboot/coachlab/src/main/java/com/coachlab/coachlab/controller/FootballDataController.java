@@ -79,4 +79,15 @@ public class FootballDataController {
     public List<FdJugadorSquadDTO> squad(@PathVariable Long id) {
         return fdService.listarPlantilla(id);
     }
+
+    /**
+     * Detalle completo de un partido (incluye bookings/substitutions/lineup
+     * solo en tiers de pago de football-data.org).
+     *
+     * @param id ID numérico del match en football-data.org.
+     */
+    @GetMapping("/matches/{id}")
+    public FdMatchDTO match(@PathVariable Long id) {
+        return fdService.getMatch(id);
+    }
 }

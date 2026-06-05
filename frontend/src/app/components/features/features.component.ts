@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { AfterViewInit, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
@@ -16,8 +16,17 @@ interface Feature {
   templateUrl: './features.component.html',
   styleUrl: './features.component.scss',
 })
-export class FeaturesComponent {
+export class FeaturesComponent implements AfterViewInit {
   private readonly sanitizer = inject(DomSanitizer);
+
+  ngAfterViewInit(): void {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add('visible')),
+      { threshold: 0.15 },
+    );
+    document.querySelectorAll('.fcard').forEach((el) => observer.observe(el));
+  }
   features: Feature[] = [
     {
       icon: 'check',
