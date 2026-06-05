@@ -24,6 +24,8 @@ export class AuthPanelComponent {
   password = '';
   error    = '';
   cargando = false;
+  coldStart = false;
+  private coldStartTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     const defaults = this.authService.getDefaultUser();
@@ -41,6 +43,7 @@ export class AuthPanelComponent {
     if (this.cargando) return;
 
     this.cargando = true;
+    this.coldStartTimer = setTimeout(() => { this.coldStart = true; }, 5000);
 
     const request$ =
       this.mode === 'login'
@@ -49,10 +52,14 @@ export class AuthPanelComponent {
 
     request$.subscribe({
       next: () => {
+        clearTimeout(this.coldStartTimer);
+        this.coldStart = false;
         this.cargando = false;
         this.authenticated.emit();
       },
       error: (err: { status?: number; message?: string }) => {
+        clearTimeout(this.coldStartTimer);
+        this.coldStart = false;
         this.cargando = false;
         if (err.status === 401 || err.status === 403) {
           this.error = 'Credenciales inválidas.';

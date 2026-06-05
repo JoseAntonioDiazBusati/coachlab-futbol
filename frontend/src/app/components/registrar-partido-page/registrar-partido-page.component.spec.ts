@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import {
+  provideHttpClientTesting,
+  HttpTestingController,
+} from '@angular/common/http/testing';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { RegistrarPartidoPageComponent } from './registrar-partido-page.component';
@@ -10,8 +14,11 @@ import { JugadorService, PlantillaJugador } from '../../services/jugador.service
 import {
   PartidoRegistradoService,
   PartidoRegistrado,
+  PartidoDetalle,
   calcularResultado,
 } from '../../services/partido-registrado.service';
+import { FootballDataService } from '../../services/football-data.service';
+import { environment } from '../../../environments/environment';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -56,7 +63,7 @@ function stubEquiposConJugadores(
   vi.spyOn(TestBed.inject(JugadorService), 'listarPlantilla')
     .mockReturnValue(of([JUGADOR_A, JUGADOR_B]));
   vi.spyOn(TestBed.inject(PartidoRegistradoService), 'listar')
-    .mockReturnValue(partidos);
+    .mockReturnValue(of(partidos));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,121 +88,117 @@ describe('calcularResultado()', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('PartidoRegistradoService', () => {
+describe('PartidoRegistradoService (HTTP)', () => {
+  let svc: PartidoRegistradoService;
+  let httpMock: HttpTestingController;
+  const base = `${environment.apiBase}/equipos`;
+
   beforeEach(() => {
-    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        PartidoRegistradoService,
+      ],
+    });
+    svc = TestBed.inject(PartidoRegistradoService);
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it('listar() returns empty array when no data', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    expect(svc.listar(1)).toEqual([]);
+  afterEach(() => httpMock.verify());
+
+  it('listar() maps PartidoDetalle[] to PartidoRegistrado[]', () => {
+    const detalle: PartidoDetalle = {
+      id: 7, fecha: '2024-03-15', rival: 'Madrid', esLocal: true,
+      golesAFavor: 2, golesEnContra: 1, competicion: 'Liga',
+      origen: 'MANUAL', externalId: null, resultado: 'VICTORIA',
+      observaciones: null,
+      estadisticas: [
+        { jugadorId: 10, nombre: 'Saka', posicion: 'Delantero', dorsal: 7,
+          goles: 1, asistencias: 0, minutosJugados: 90,
+          tarjetasAmarillas: 0, tarjetasRojas: 0, esTitular: true, impacto: 3 },
+      ],
+    };
+
+    let result: PartidoRegistrado[] = [];
+    svc.listar(1).subscribe((r) => (result = r));
+
+    const req = httpMock.expectOne(`${base}/1/partidos`);
+    expect(req.request.method).toBe('GET');
+    req.flush([detalle]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].golesNuestros).toBe(2);
+    expect(result[0].golesRivales).toBe(1);
+    expect(result[0].jugadoresIds).toEqual([10]);
+    expect(result[0].estadisticas?.[0].goles).toBe(1);
   });
 
-  it('guardar() creates a partido and returns it', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    const payload = {
-      rival: 'Real Madrid', fecha: '2024-03-15', esLocal: true,
+  it('guardar() POSTs to /full with mapped body', () => {
+    svc.guardar(1, {
+      rival: 'Madrid', fecha: '2024-03-15', esLocal: true,
       competicion: 'Liga', golesNuestros: 2, golesRivales: 1,
-      resultado: 'VICTORIA' as const, jugadoresIds: [10],
-    };
-    const partido = svc.guardar(1, payload);
-    expect(partido.id).toBe(1);
-    expect(partido.rival).toBe('Real Madrid');
+      resultado: 'VICTORIA', jugadoresIds: [10],
+      estadisticas: [{ jugadorId: 10, goles: 1, asistencias: 0,
+        minutosJugados: 90, tarjetasAmarillas: 0, tarjetasRojas: 0, esTitular: true }],
+    }).subscribe();
+
+    const req = httpMock.expectOne(`${base}/1/partidos/full`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.golesAFavor).toBe(2);
+    expect(req.request.body.golesEnContra).toBe(1);
+    expect(req.request.body.origen).toBe('MANUAL');
+    expect(req.request.body.estadisticas).toHaveLength(1);
+    req.flush({
+      id: 5, fecha: '2024-03-15', rival: 'Madrid', esLocal: true,
+      golesAFavor: 2, golesEnContra: 1, competicion: 'Liga',
+      origen: 'MANUAL', externalId: null, resultado: 'VICTORIA',
+      observaciones: null, estadisticas: [],
+    } as PartidoDetalle);
   });
 
-  it('guardar() increments id automatically', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    const base = {
-      rival: 'X', fecha: '2024-01-01', esLocal: true,
-      competicion: 'Liga', golesNuestros: 1, golesRivales: 0,
-      resultado: 'VICTORIA' as const, jugadoresIds: [],
-    };
-    const p1 = svc.guardar(1, base);
-    const p2 = svc.guardar(1, { ...base, rival: 'Y' });
-    expect(p2.id).toBe(p1.id + 1);
+  it('eliminar() issues DELETE', () => {
+    svc.eliminar(1, 5).subscribe();
+    const req = httpMock.expectOne(`${base}/1/partidos/5`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
   });
 
-  it('guardar() prepends newest partido (most-recent-first)', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    const base = {
-      rival: 'X', fecha: '2024-01-01', esLocal: true,
-      competicion: 'Liga', golesNuestros: 1, golesRivales: 0,
-      resultado: 'VICTORIA' as const, jugadoresIds: [],
-    };
-    svc.guardar(1, base);
-    svc.guardar(1, { ...base, rival: 'Y' });
-    const lista = svc.listar(1);
-    expect(lista[0].rival).toBe('Y');
-    expect(lista[1].rival).toBe('X');
+  it('previewFd() requests the preview endpoint with params', () => {
+    svc.previewFd(1, 999, 100).subscribe();
+    const req = httpMock.expectOne(
+      (r) => r.url === `${base}/1/partidos/preview-fd`,
+    );
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('fdMatchId')).toBe('999');
+    expect(req.request.params.get('fdTeamId')).toBe('100');
+    req.flush({
+      fecha: '2024-03-15', rival: 'Madrid', esLocal: true,
+      golesAFavor: 1, golesEnContra: 0, competicion: 'Liga',
+      origen: 'FOOTBALL_DATA', externalId: 999, estadisticas: [],
+    });
   });
-
-  it('listar() returns the persisted partidos', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    const payload = {
-      rival: 'Real Madrid', fecha: '2024-03-15', esLocal: true,
-      competicion: 'Liga', golesNuestros: 2, golesRivales: 1,
-      resultado: 'VICTORIA' as const, jugadoresIds: [10],
-    };
-    svc.guardar(1, payload);
-    expect(svc.listar(1)).toHaveLength(1);
-    expect(svc.listar(1)[0].rival).toBe('Real Madrid');
-  });
-
-  it('eliminar() removes the correct partido', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    const base = {
-      rival: 'X', fecha: '2024-01-01', esLocal: true,
-      competicion: 'Liga', golesNuestros: 1, golesRivales: 0,
-      resultado: 'VICTORIA' as const, jugadoresIds: [],
-    };
-    const p1 = svc.guardar(1, base);
-    const p2 = svc.guardar(1, { ...base, rival: 'Y' });
-    svc.eliminar(1, p1.id);
-    const lista = svc.listar(1);
-    expect(lista).toHaveLength(1);
-    expect(lista[0].id).toBe(p2.id);
-  });
-
-  it('eliminar() is a no-op when partido does not exist', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    expect(() => svc.eliminar(1, 999)).not.toThrow();
-  });
-
-  it('limpiar() removes all partidos for the team', () => {
-    const svc = TestBed.inject(PartidoRegistradoService);
-    const base = {
-      rival: 'X', fecha: '2024-01-01', esLocal: true,
-      competicion: 'Liga', golesNuestros: 1, golesRivales: 0,
-      resultado: 'VICTORIA' as const, jugadoresIds: [],
-    };
-    svc.guardar(1, base);
-    svc.limpiar(1);
-    expect(svc.listar(1)).toHaveLength(0);
-  });
-
-  afterEach(() => { localStorage.clear(); });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('RegistrarPartidoPageComponent', () => {
   beforeEach(async () => {
-    localStorage.clear();
     vi.restoreAllMocks();
     await TestBed.configureTestingModule({
       imports: [RegistrarPartidoPageComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideHttpClientTesting(),
         EquipoService,
         EquipoActivoService,
         JugadorService,
         PartidoRegistradoService,
+        FootballDataService,
       ],
     }).compileComponents();
   });
-
-  afterEach(() => { localStorage.clear(); });
 
   // ── Smoke ────────────────────────────────────────
   it('should create', () => {
@@ -230,7 +233,7 @@ describe('RegistrarPartidoPageComponent', () => {
   it('sets sinEquipo = true when no equipo is found', () => {
     vi.spyOn(TestBed.inject(EquipoService), 'listar').mockReturnValue(of([]));
     vi.spyOn(TestBed.inject(JugadorService), 'listarPlantilla').mockReturnValue(of([]));
-    vi.spyOn(TestBed.inject(PartidoRegistradoService), 'listar').mockReturnValue([]);
+    vi.spyOn(TestBed.inject(PartidoRegistradoService), 'listar').mockReturnValue(of([]));
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.ngOnInit();
     expect(comp.sinEquipo).toBe(true);
@@ -325,7 +328,7 @@ describe('RegistrarPartidoPageComponent', () => {
       resultado: 'VICTORIA', jugadoresIds: [],
     };
     const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
-      .mockReturnValue(savedPartido);
+      .mockReturnValue(of(savedPartido));
 
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.equipo = EQUIPO_MOCK;
@@ -345,7 +348,7 @@ describe('RegistrarPartidoPageComponent', () => {
   it('guardar() computes the resultado automatically (VICTORIA)', () => {
     stubEquiposConJugadores();
     const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
-      .mockReturnValue({ id: 1 } as PartidoRegistrado);
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
 
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.equipo = EQUIPO_MOCK;
@@ -363,7 +366,7 @@ describe('RegistrarPartidoPageComponent', () => {
   it('guardar() computes the resultado automatically (DERROTA)', () => {
     stubEquiposConJugadores();
     const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
-      .mockReturnValue({ id: 1 } as PartidoRegistrado);
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
 
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.equipo = EQUIPO_MOCK;
@@ -381,7 +384,7 @@ describe('RegistrarPartidoPageComponent', () => {
   it('guardar() passes selected jugadores IDs to the service', () => {
     stubEquiposConJugadores();
     const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
-      .mockReturnValue({ id: 1 } as PartidoRegistrado);
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
 
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.equipo = EQUIPO_MOCK;
@@ -397,10 +400,33 @@ describe('RegistrarPartidoPageComponent', () => {
     expect(payload.jugadoresIds).toContain(22);
   });
 
+  it('guardar() builds estadisticas for the selected jugadores', () => {
+    stubEquiposConJugadores();
+    const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
+
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.equipo = EQUIPO_MOCK;
+    comp.jugadores = [JUGADOR_A, JUGADOR_B];
+    comp.toggleJugador(10);
+    comp.statsDe(10).goles = 2;
+    comp.nuevo = {
+      rival: 'Madrid', fecha: '2024-03-15', esLocal: true,
+      competicion: 'Liga', golesNuestros: 2, golesRivales: 1,
+      jugadoresSeleccionados: new Set([10]),
+    };
+    comp.guardar();
+
+    const payload = spy.mock.calls[0][1];
+    expect(payload.estadisticas).toHaveLength(1);
+    expect(payload.estadisticas?.[0].jugadorId).toBe(10);
+    expect(payload.estadisticas?.[0].goles).toBe(2);
+  });
+
   it('guardar() closes the form on success', () => {
     stubEquiposConJugadores();
     vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
-      .mockReturnValue({ id: 1 } as PartidoRegistrado);
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
 
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.equipo = EQUIPO_MOCK;
@@ -429,7 +455,8 @@ describe('RegistrarPartidoPageComponent', () => {
   // ── eliminarPartido() ─────────────────────────────
   it('eliminarPartido() calls service and removes partido from list', () => {
     stubEquiposConJugadores([PARTIDO_MOCK]);
-    const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'eliminar');
+    const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'eliminar')
+      .mockReturnValue(of(void 0));
 
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     comp.equipo = EQUIPO_MOCK;
@@ -455,6 +482,13 @@ describe('RegistrarPartidoPageComponent', () => {
     comp.nuevo.jugadoresSeleccionados.add(10);
     comp.toggleJugador(10);
     expect(comp.jugadorEstaSeleccionado(10)).toBe(false);
+  });
+
+  it('toggleJugador() initializes a stats row when selecting', () => {
+    stubEquiposConJugadores();
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.toggleJugador(10);
+    expect(comp.estadisticasParticipacion.has(10)).toBe(true);
   });
 
   // ── seleccionarTodos() / deseleccionarTodos() ─────
@@ -554,5 +588,53 @@ describe('RegistrarPartidoPageComponent', () => {
     stubEquiposConJugadores();
     const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
     expect(comp.condicionLabel(false)).toBe('Visitante');
+  });
+
+  // ── esTitular (§8 del plan) ───────────────────────
+  it('statsVacias() initializes esTitular = true when selecting a jugador', () => {
+    stubEquiposConJugadores();
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.toggleJugador(10);
+    expect(comp.estadisticasParticipacion.get(10)?.esTitular).toBe(true);
+  });
+
+  it('guardar() includes esTitular in the payload', () => {
+    stubEquiposConJugadores();
+    const spy = vi.spyOn(TestBed.inject(PartidoRegistradoService), 'guardar')
+      .mockReturnValue(of({ id: 1 } as PartidoRegistrado));
+
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.equipo = EQUIPO_MOCK;
+    comp.jugadores = [JUGADOR_A];
+    comp.toggleJugador(JUGADOR_A.jugadorId);
+    comp.nuevo = {
+      rival: 'Madrid', fecha: '2024-03-15', esLocal: true,
+      competicion: 'Liga', golesNuestros: 1, golesRivales: 0,
+      jugadoresSeleccionados: new Set([JUGADOR_A.jugadorId]),
+    };
+    comp.guardar();
+
+    const payload = spy.mock.calls[0][1];
+    expect(payload.estadisticas?.[0].esTitular).toBe(true);
+  });
+
+  it('toggleDetalle() expands the partido and collapses on second call', () => {
+    stubEquiposConJugadores([PARTIDO_MOCK]);
+    vi.spyOn(TestBed.inject(PartidoRegistradoService), 'obtenerDetalle')
+      .mockReturnValue(of({
+        id: 1, fecha: '2024-03-15', rival: 'Real Madrid', esLocal: true,
+        golesAFavor: 2, golesEnContra: 1, competicion: 'Liga',
+        origen: 'MANUAL', externalId: null, resultado: 'VICTORIA',
+        observaciones: null, estadisticas: [],
+      }));
+
+    const comp = TestBed.createComponent(RegistrarPartidoPageComponent).componentInstance;
+    comp.equipo = EQUIPO_MOCK;
+
+    comp.toggleDetalle(PARTIDO_MOCK);
+    expect(comp.partidoExpandidoId).toBe(PARTIDO_MOCK.id);
+
+    comp.toggleDetalle(PARTIDO_MOCK);
+    expect(comp.partidoExpandidoId).toBeNull();
   });
 });

@@ -34,9 +34,6 @@ const PORTERO_MOCK: PlantillaJugador = {
   tarjetasAmarillas: 0,
   tarjetasRojas: 0,
   impacto: 1.5,
-  paradasLimpias: 3,
-  golesEncajados: 1,
-  penaltisParados: 0,
 };
 
 function stubEquipoService(): void {

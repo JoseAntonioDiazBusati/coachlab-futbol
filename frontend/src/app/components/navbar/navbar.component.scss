@@ -4,14 +4,21 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(11, 14, 20, 0.85);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid $border-light;
+  background: transparent;
+  backdrop-filter: none;
+  border-bottom: 1px solid transparent;
   padding: 0 $sp-5xl;
   height: 62px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  transition: background $transition-base, border-color $transition-base, backdrop-filter $transition-base;
+
+  &.scrolled {
+    background: rgba(11, 14, 20, 0.9);
+    backdrop-filter: blur(14px);
+    border-bottom-color: $border-light;
+  }
 }
 
 .logo {

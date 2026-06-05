@@ -32,6 +32,12 @@ public class Equipo {
     private String ciudad;           // Ciudad del equipo (opcional)
     private String escudoUrl;       // URL de imagen del escudo (opcional)
 
+    // Propietario del equipo — excluido de JSON. Cada usuario solo ve los suyos.
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private Usuario usuario;
+
     // Un equipo tiene muchos jugadores — excluidos de la serialización JSON
     // para evitar LazyInitializationException fuera de transacción.
     @JsonIgnore

@@ -31,7 +31,10 @@ public class Jugador {
     private Integer dorsal;
     private String posicion;        // Ej: "Portero", "Defensa", "Centrocampista", "Delantero"
     private Integer edad;
-    private String fotoUrl;
+
+    // Id del jugador en football-data.org (si se importó la plantilla desde la API).
+    // Permite enlazar eventos de partidos FD (bookings, substitutions) con el jugador.
+    private Long externalId;
 
     // Relación con el equipo — excluida de JSON para evitar ciclos y LazyInitializationException
     @JsonIgnore

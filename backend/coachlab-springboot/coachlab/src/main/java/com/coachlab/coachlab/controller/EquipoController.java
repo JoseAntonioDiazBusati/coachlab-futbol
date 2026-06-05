@@ -20,10 +20,10 @@ public class EquipoController {
     private final EquipoService equipoService;
     private final AnalisisService analisisService;
 
-    // GET /api/equipos
+    // GET /api/equipos — solo los del usuario autenticado
     @GetMapping
     public List<Equipo> listar() {
-        return equipoService.listarTodos();
+        return equipoService.listarMisEquipos();
     }
 
     // GET /api/equipos/{id}
@@ -57,6 +57,7 @@ public class EquipoController {
     // GET /api/equipos/{id}/ire
     @GetMapping("/{id}/ire")
     public ResponseEntity<Map<String, Object>> obtenerIRE(@PathVariable Long id) {
+        equipoService.buscarPorId(id);   // valida pertenencia (404 si ajeno)
         double ire = analisisService.calcularIRE(id);
         return ResponseEntity.ok(Map.of(
             "equipoId", id,
@@ -68,6 +69,7 @@ public class EquipoController {
     // GET /api/equipos/{id}/resumen
     @GetMapping("/{id}/resumen")
     public ResponseEntity<Map<String, Object>> resumenTemporada(@PathVariable Long id) {
+        equipoService.buscarPorId(id);   // valida pertenencia (404 si ajeno)
         return ResponseEntity.ok(analisisService.resumenTemporada(id));
     }
 

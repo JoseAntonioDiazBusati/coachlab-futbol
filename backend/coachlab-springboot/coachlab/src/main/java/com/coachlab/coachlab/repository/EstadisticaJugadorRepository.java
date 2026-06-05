@@ -34,4 +34,8 @@ public interface EstadisticaJugadorRepository extends JpaRepository<EstadisticaJ
     // Total de tarjetas rojas
     @Query("SELECT SUM(e.tarjetasRojas) FROM EstadisticaJugador e WHERE e.jugador.id = :jugadorId")
     Integer totalTarjetasRojasByJugador(@Param("jugadorId") Long jugadorId);
+
+    // Número de partidos en los que el jugador fue titular
+    @Query("SELECT COUNT(e) FROM EstadisticaJugador e WHERE e.jugador.id = :jugadorId AND e.esTitular = true")
+    Long totalTitularidadesByJugador(@Param("jugadorId") Long jugadorId);
 }

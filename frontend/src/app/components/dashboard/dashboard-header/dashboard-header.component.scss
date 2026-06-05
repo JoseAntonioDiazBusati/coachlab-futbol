@@ -70,6 +70,143 @@
   @include button-ghost;
 }
 
+/* ── Botón perfil ────────────────────────────── */
+.btn-perfil {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: $font-inter;
+}
+
+/* ── Modal de perfil ─────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: $sp-lg;
+}
+
+.modal-card {
+  background: $bg;
+  border-radius: $border-radius-lg;
+  padding: $sp-xl;
+  max-width: 480px;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.perfil-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: $sp-lg;
+}
+
+.modal-title { font-size: $fs-2xl; margin: 0; }
+.modal-close {
+  background: none;
+  border: none;
+  font-size: $fs-2xl;
+  cursor: pointer;
+  color: inherit;
+  line-height: 1;
+  padding: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-md;
+  margin-top: $sp-lg;
+}
+
+.eyebrow {
+  font-size: $fs-md;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  margin: 0 0 2px;
+}
+
+.perfil-card {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: $border-radius-md;
+  padding: $sp-lg;
+  margin-bottom: $sp-lg;
+
+  &.danger { border-color: rgba(239, 68, 68, 0.4); }
+}
+
+.card-title { font-size: $fs-xl; margin: 0 0 $sp-xs; }
+.card-sub { font-size: $fs-base; opacity: 0.7; margin: 0 0 $sp-md; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-xs;
+  margin-bottom: $sp-md;
+
+  span { font-size: $fs-md; font-weight: 600; opacity: 0.8; }
+
+  input {
+    padding: $sp-sm $sp-md;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: $border-radius-sm;
+    font-size: $fs-lg;
+    background: $bg;
+    color: $text-primary;
+  }
+}
+
+.field-hint {
+  font-size: $fs-md;
+  opacity: 0.6;
+  margin: 0 0 $sp-md;
+
+  &.warn { color: #b45309; opacity: 1; }
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $sp-md;
+}
+
+.btn-danger {
+  background: $danger;
+  color: #fff;
+  border: none;
+  padding: $sp-sm $sp-lg;
+  border-radius: $border-radius-md;
+  font-size: $fs-lg;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.status-banner {
+  padding: $sp-sm $sp-md;
+  border-radius: $border-radius-md;
+  font-size: $fs-lg;
+  margin: $sp-sm 0;
+
+  &.error   { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: $danger; }
+  &.success { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #16a34a; }
+}
+
+.loading-state { text-align: center; padding: $sp-lg; }
+.loading-dots  { display: flex; justify-content: center; gap: $sp-sm; margin-bottom: $sp-sm; }
+.loading-msg   { opacity: 0.6; font-size: $fs-lg; margin: 0; }
+
 @media (max-width: 768px) {
   .nav {
     padding: 0 $sp-lg;

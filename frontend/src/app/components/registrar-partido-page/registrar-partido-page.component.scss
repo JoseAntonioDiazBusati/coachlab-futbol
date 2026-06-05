@@ -61,6 +61,135 @@
     border: 1px solid rgba(239, 68, 68, 0.3);
     color: $danger;
   }
+
+  &.warning {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #b45309;
+  }
+}
+
+/* ── Importador football-data.org ─────────────────── */
+.import-list {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-xs;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.import-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $sp-md;
+  width: 100%;
+  text-align: left;
+  padding: $sp-md $sp-lg;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: $border-radius-md;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: $fs-lg;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover { background: rgba(148, 163, 184, 0.12); }
+
+  .import-item-sub { font-size: $fs-md; opacity: 0.6; }
+  .import-match-teams { font-weight: 600; }
+}
+
+.meta-origen {
+  font-size: $fs-xs;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: $border-radius-sm;
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+.btn-detalle-card {
+  font-size: $fs-md;
+  color: #2563eb;
+  padding: 2px 8px;
+  border-radius: $border-radius-sm;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: $font-inter;
+
+  &:hover { background: rgba(59, 130, 246, 0.12); }
+}
+
+// ── Detalle expandido inline ──────────────────────
+.partido-detalle-inline {
+  padding: $sp-lg $sp-xl;
+  border-top: 1px solid $border-dark-transparent;
+  animation: fadeIn 0.2s ease;
+
+  .stats-head,
+  .stats-row {
+    grid-template-columns: minmax(140px, 1fr) 40px repeat(6, 1fr);
+  }
+}
+
+.stats-pos {
+  font-size: $fs-xs;
+  color: $text-quaternary;
+  margin-left: $sp-xs;
+}
+
+.titular-badge {
+  font-size: $fs-md;
+  text-align: center;
+  color: $text-muted;
+
+  &.is-titular { color: $primary; font-weight: $fw-semibold; }
+}
+
+/* ── Tabla de eventos por jugador ─────────────────── */
+.stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-xs;
+}
+
+.stats-head,
+.stats-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 60px repeat(5, 56px);
+  gap: $sp-sm;
+  align-items: center;
+}
+
+.stats-head {
+  font-size: $fs-md;
+  font-weight: 600;
+  opacity: 0.7;
+  text-align: center;
+
+  .stats-col-jugador { text-align: left; }
+}
+
+.stats-row {
+  padding: $sp-xs 0;
+
+  .stats-col-jugador {
+    display: flex;
+    align-items: center;
+    gap: $sp-xs;
+    font-size: $fs-lg;
+  }
+
+  input {
+    width: 100%;
+    text-align: center;
+    padding: $sp-xs;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: $border-radius-sm;
+    font-size: $fs-md;
+  }
 }
 
 .btn-retry {
