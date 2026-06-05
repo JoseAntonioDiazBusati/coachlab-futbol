@@ -8,6 +8,12 @@ import { environment } from '../../environments/environment';
 /**
  * Campos necesarios para calcular el IRE en cliente (local preview).
  * Fórmula simplificada; el ranking definitivo lo devuelve el backend.
+ *
+ * NOTA (PLAN-RETROALIMENTACION §2.3): el plan proponía eliminar este cálculo en
+ * cliente. Se conserva de forma deliberada como parte de la arquitectura
+ * dual-write: ofrece un impacto optimista inmediato tras crear/editar un
+ * jugador. NO es la fuente de verdad — `listarPlantilla()` siempre refresca con
+ * el ranking del backend, que sobrescribe este valor en la siguiente carga.
  */
 export interface IREInput {
   posicion: string;

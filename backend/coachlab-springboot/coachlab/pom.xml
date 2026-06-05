@@ -36,11 +36,19 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- H2 Database — solo para tests (no se incluye en el fat-jar de producción) -->
+        <!-- Actuator — expone /actuator/health para el healthcheck de Docker/Render -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- H2 Database — perfil 'dev' (desarrollo local sin MySQL) y tests.
+             Scope runtime: necesario en el classpath de ejecución para que el
+             perfil dev pueda usar org.h2.Driver. En prod se usa MySQL igualmente. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- MySQL Connector (producción y Docker) -->

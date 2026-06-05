@@ -7,7 +7,6 @@ import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboar
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { JugadorService, CrearJugadorPayload } from '../../services/jugador.service';
-import { PartidoService, PartidoImportado } from '../../services/partido.service';
 import {
   FootballDataService,
   FdCompeticion,
@@ -49,33 +48,6 @@ function mapFdPosicion(position: string | null | undefined): string {
       return 'Centrocampista';
     }
   }
-}
-
-/**
- * Convierte un `FdMatch` al formato `PartidoImportado` desde la perspectiva
- * del equipo con ID `fdTeamId`.
- */
-function mapFdMatchToPartido(match: FdMatch, fdTeamId: number): PartidoImportado {
-  const esLocal      = match.homeTeam.id === fdTeamId;
-  const gF           = match.score.fullTime;
-  const golesNuestros = esLocal ? (gF.home ?? 0) : (gF.away ?? 0);
-  const golesRivales  = esLocal ? (gF.away ?? 0) : (gF.home ?? 0);
-  const rival         = esLocal
-    ? (match.awayTeam.shortName ?? match.awayTeam.name)
-    : (match.homeTeam.shortName ?? match.homeTeam.name);
-
-  const resultado: 'VICTORIA' | 'EMPATE' | 'DERROTA' =
-    golesNuestros > golesRivales ? 'VICTORIA' :
-    golesNuestros < golesRivales ? 'DERROTA'  : 'EMPATE';
-
-  return {
-    rival,
-    fecha: match.utcDate.split('T')[0],
-    esLocal,
-    golesNuestros,
-    golesRivales,
-    resultado,
-  };
 }
 
 interface MatchStats {
@@ -164,7 +136,6 @@ export class LigaPageComponent implements OnInit, OnDestroy {
   private readonly equipoActivo   = inject(EquipoActivoService);
   private readonly fdService      = inject(FootballDataService);
   private readonly jugadorService = inject(JugadorService);
-  private readonly partidoService = inject(PartidoService);
   private readonly router         = inject(Router);
 
   /**
@@ -353,7 +324,7 @@ export class LigaPageComponent implements OnInit, OnDestroy {
     if (!this.equipoApiSeleccionado) return;
     const fd   = this.equipoApiSeleccionado;
     const comp = this.competicionSeleccionada;
-    this.loadingMsg = 'Importando equipo, plantilla y partidos...';
+    this.loadingMsg = 'Importando equipo y plantilla...';
     this.guardando = true;
     this.error = null;
 
@@ -426,13 +397,10 @@ export class LigaPageComponent implements OnInit, OnDestroy {
             this.jugadorService.importarPlantilla(equipo.id, payloads);
           }
 
-          // ── Persist matches (most-recent-first from the API) ─────────
-          if (partidos.length > 0) {
-            this.partidoService.guardar(
-              equipo.id,
-              partidos.map((m) => mapFdMatchToPartido(m, fd.id)),
-            );
-          }
+          // Nota: los partidos descargados se usan solo para agregar las
+          // estadísticas de la plantilla (tarjetas/minutos). No se persisten
+          // localmente; el historial de partidos vive en el backend vía
+          // PartidoRegistradoService (importador de la pantalla Registrar Partido).
 
           // ── Activate & finish ────────────────────────────────────────
           this.equipoActivo.setEquipo(equipo.id);

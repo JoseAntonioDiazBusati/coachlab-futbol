@@ -23,10 +23,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         var u = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(u.getEmail())
-                .password(u.getPassword())
-                .roles("USER")
-                .build();
+        // Devolvemos el Usuario completo envuelto para que AuthService.login()
+        // pueda leer nombre/email del principal sin una segunda consulta.
+        return new CustomUserDetails(u);
     }
 }

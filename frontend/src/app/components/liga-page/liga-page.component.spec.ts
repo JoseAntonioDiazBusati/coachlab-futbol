@@ -7,7 +7,6 @@ import { LigaPageComponent, agregarStatsDePartidos } from './liga-page.component
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { JugadorService } from '../../services/jugador.service';
-import { PartidoService } from '../../services/partido.service';
 import {
   FootballDataService,
   FdCompeticion,
@@ -116,7 +115,6 @@ describe('LigaPageComponent', () => {
         EquipoActivoService,
         FootballDataService,
         JugadorService,
-        PartidoService,
       ],
     }).compileComponents();
   });
@@ -420,33 +418,6 @@ describe('LigaPageComponent', () => {
       expect(jugadores[2]).toMatchObject({ nombre: 'William Saliba', posicion: 'Defensa',         dorsal: 12 });
     });
 
-    it('persists imported matches via PartidoService.guardar()', () => {
-      stubEquipos();
-      stubListarCompeticiones();
-      stubConfirmar();
-      const guardarSpy = vi.spyOn(TestBed.inject(PartidoService), 'guardar');
-
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
-      comp.competicionSeleccionada = COMP_MOCK;
-
-      comp.confirmarEquipoApi();
-
-      expect(guardarSpy).toHaveBeenCalledOnce();
-      const [equipoId, partidos] = guardarSpy.mock.calls[0];
-      expect(equipoId).toBe(EQUIPO_CREADO_MOCK.id);
-      expect(partidos).toHaveLength(1);
-      // Arsenal was home (id 57) → 2-1 win
-      expect(partidos[0]).toMatchObject({
-        rival:         'Liverpool',
-        fecha:         '2024-03-15',
-        esLocal:       true,
-        golesNuestros: 2,
-        golesRivales:  1,
-        resultado:     'VICTORIA',
-      });
-    });
-
     it('still succeeds and closes panel when squad API fails', () => {
       stubEquipos();
       stubListarCompeticiones();
@@ -471,7 +442,6 @@ describe('LigaPageComponent', () => {
       stubConfirmar({
         partidos: throwError(() => new Error('429: rate limit')),
       });
-      const guardarSpy = vi.spyOn(TestBed.inject(PartidoService), 'guardar');
 
       const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
       comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
@@ -480,7 +450,8 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       expect(comp.panelAbierto).toBe('ninguno');
-      expect(guardarSpy).not.toHaveBeenCalled();
+      expect(comp.guardando).toBe(false);
+      expect(comp.error).toBeNull();
     });
 
     it('shows error and keeps panel open when team creation fails', () => {
@@ -514,21 +485,6 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       expect(importSpy).not.toHaveBeenCalled();
-    });
-
-    it('skips guardar when matches list is empty', () => {
-      stubEquipos();
-      stubListarCompeticiones();
-      stubConfirmar({ partidos: of([]) });
-      const guardarSpy = vi.spyOn(TestBed.inject(PartidoService), 'guardar');
-
-      const comp = TestBed.createComponent(LigaPageComponent).componentInstance;
-      comp.equipoApiSeleccionado = FD_EQUIPO_MOCK;
-      comp.competicionSeleccionada = COMP_MOCK;
-
-      comp.confirmarEquipoApi();
-
-      expect(guardarSpy).not.toHaveBeenCalled();
     });
 
     it('passes competicion id to listarPartidosEquipo to filter by league', () => {
