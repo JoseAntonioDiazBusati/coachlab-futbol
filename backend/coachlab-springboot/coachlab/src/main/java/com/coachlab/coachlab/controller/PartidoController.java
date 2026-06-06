@@ -30,13 +30,13 @@ public class PartidoController {
     // GET /api/equipos/{equipoId}/partidos/{id} — detalle con estadísticas
     @GetMapping("/{id}")
     public PartidoDetalleDTO obtener(@PathVariable Long equipoId, @PathVariable Long id) {
-        return partidoService.obtenerDetalle(id);
+        return partidoService.obtenerDetalle(equipoId, id);
     }
 
     // GET /api/equipos/{equipoId}/partidos/{id}/estadisticas
     @GetMapping("/{id}/estadisticas")
     public List<EstadisticaDetalleDTO> estadisticas(@PathVariable Long equipoId, @PathVariable Long id) {
-        return partidoService.listarEstadisticas(id);
+        return partidoService.listarEstadisticas(equipoId, id);
     }
 
     // POST /api/equipos/{equipoId}/partidos
@@ -68,7 +68,7 @@ public class PartidoController {
     public Partido actualizar(@PathVariable Long equipoId,
                                @PathVariable Long id,
                                @Valid @RequestBody Partido partido) {
-        return partidoService.actualizar(id, partido);
+        return partidoService.actualizar(equipoId, id, partido);
     }
 
     // PUT /api/equipos/{equipoId}/partidos/{id}/full — actualizar partido + estadísticas (replace)
@@ -83,6 +83,6 @@ public class PartidoController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void eliminar(@PathVariable Long equipoId, @PathVariable Long id) {
-        partidoService.eliminar(id);
+        partidoService.eliminar(equipoId, id);
     }
 }

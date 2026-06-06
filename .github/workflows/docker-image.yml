@@ -61,7 +61,7 @@ jobs:
     needs: [docker-backend, docker-frontend]
     steps:
       - name: Deploy backend
-        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" || true
+        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
 
       - name: Deploy frontend
-        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" || true
+        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"

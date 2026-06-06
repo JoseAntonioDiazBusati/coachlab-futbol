@@ -5,8 +5,10 @@ import com.coachlab.coachlab.model.Jugador;
 import com.coachlab.coachlab.repository.EstadisticaJugadorRepository;
 import com.coachlab.coachlab.repository.JugadorRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,10 +28,17 @@ public class JugadorService {
         return jugadorRepository.findByEquipoId(equipoId);
     }
 
+    /**
+     * Busca un jugador validando que pertenece al equipo indicado y que ese
+     * equipo es del usuario autenticado. Devuelve 404 si no existe o es ajeno
+     * (no se filtra la existencia de recursos de otros usuarios).
+     */
     @Transactional(readOnly = true)
-    public Jugador buscarPorId(Long id) {
-        return jugadorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Jugador no encontrado con id: " + id));
+    public Jugador buscarPorId(Long equipoId, Long id) {
+        equipoService.buscarPorId(equipoId);   // valida pertenencia del equipo (404 si ajeno)
+        return jugadorRepository.findByIdAndEquipoId(id, equipoId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Jugador no encontrado con id: " + id));
     }
 
     public Jugador crear(Long equipoId, Jugador jugador) {
@@ -37,8 +46,8 @@ public class JugadorService {
         return jugadorRepository.save(jugador);
     }
 
-    public Jugador actualizar(Long id, Jugador datos) {
-        Jugador jugador = buscarPorId(id);
+    public Jugador actualizar(Long equipoId, Long id, Jugador datos) {
+        Jugador jugador = buscarPorId(equipoId, id);   // valida pertenencia (404 si ajeno)
         jugador.setNombre(datos.getNombre());
         jugador.setApellidos(datos.getApellidos());
         jugador.setDorsal(datos.getDorsal());
@@ -47,8 +56,9 @@ public class JugadorService {
         return jugadorRepository.save(jugador);
     }
 
-    public void eliminar(Long id) {
-        jugadorRepository.deleteById(id);
+    public void eliminar(Long equipoId, Long id) {
+        Jugador jugador = buscarPorId(equipoId, id);   // valida pertenencia (404 si ajeno)
+        jugadorRepository.delete(jugador);
     }
 
     /**

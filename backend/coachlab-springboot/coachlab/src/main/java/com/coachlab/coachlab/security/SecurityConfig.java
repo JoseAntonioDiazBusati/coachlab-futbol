@@ -20,6 +20,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @Configuration
@@ -48,6 +49,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )
+            // API REST stateless: las peticiones sin autenticar devuelven 401 (no 403).
+            .exceptionHandling(e -> e.authenticationEntryPoint(
+                (req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "No autenticado")))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
