@@ -412,10 +412,10 @@ describe('LigaPageComponent', () => {
       const [equipoId, jugadores] = importSpy.mock.calls[0];
       expect(equipoId).toBe(EQUIPO_CREADO_MOCK.id);
       expect(jugadores).toHaveLength(SQUAD_MOCK.length);
-      // Position mapping
-      expect(jugadores[0]).toMatchObject({ nombre: 'Bukayo Saka',    posicion: 'Delantero',      dorsal: 7  });
-      expect(jugadores[1]).toMatchObject({ nombre: 'David Raya',     posicion: 'Portero',         dorsal: 22 });
-      expect(jugadores[2]).toMatchObject({ nombre: 'William Saliba', posicion: 'Defensa',         dorsal: 12 });
+      // Position mapping + separación nombre/apellidos desde el nombre completo de la API
+      expect(jugadores[0]).toMatchObject({ nombre: 'Bukayo',  apellidos: 'Saka',   posicion: 'Delantero', dorsal: 7  });
+      expect(jugadores[1]).toMatchObject({ nombre: 'David',   apellidos: 'Raya',   posicion: 'Portero',   dorsal: 22 });
+      expect(jugadores[2]).toMatchObject({ nombre: 'William', apellidos: 'Saliba', posicion: 'Defensa',   dorsal: 12 });
     });
 
     it('still succeeds and closes panel when squad API fails', () => {
@@ -518,7 +518,9 @@ describe('LigaPageComponent', () => {
 
       const jugadores = importSpy.mock.calls[0][1];
       // GOLEADOR_MOCK maps player.id=1 (Bukayo Saka) → goals=5, assists=3
-      const saka = jugadores.find((j: { nombre: string }) => j.nombre === 'Bukayo Saka');
+      const saka = jugadores.find(
+        (j: { nombre: string; apellidos?: string }) => j.nombre === 'Bukayo' && j.apellidos === 'Saka',
+      );
       expect(saka).toBeDefined();
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       expect(saka!.goles).toBe(5);
@@ -1022,7 +1024,7 @@ describe('LigaPageComponent', () => {
 
       expect(importSpy).toHaveBeenCalledOnce();
       const payloads = importSpy.mock.calls[0][1];
-      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      const playerPayload = payloads.find((p) => p.nombre === 'Player' && p.apellidos === 'A');
       expect(playerPayload?.tarjetasAmarillas).toBe(1);
       expect(playerPayload?.tarjetasRojas).toBe(0);
     });
@@ -1066,7 +1068,7 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       const payloads = importSpy.mock.calls[0][1];
-      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      const playerPayload = payloads.find((p) => p.nombre === 'Player' && p.apellidos === 'A');
       expect(playerPayload?.tarjetasRojas).toBe(1);
     });
 
@@ -1105,7 +1107,7 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       const payloads = importSpy.mock.calls[0][1];
-      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      const playerPayload = payloads.find((p) => p.nombre === 'Player' && p.apellidos === 'A');
       expect(playerPayload?.minutos).toBe(90);
     });
 
@@ -1132,7 +1134,7 @@ describe('LigaPageComponent', () => {
       comp.confirmarEquipoApi();
 
       const payloads = importSpy.mock.calls[0][1];
-      const playerPayload = payloads.find((p) => p.nombre === 'Player A');
+      const playerPayload = payloads.find((p) => p.nombre === 'Player' && p.apellidos === 'A');
       expect(playerPayload?.tarjetasAmarillas).toBe(0);
       expect(playerPayload?.tarjetasRojas).toBe(0);
       expect(playerPayload?.minutos).toBe(0);

@@ -7,6 +7,7 @@ import { FeaturesComponent } from '../features/features.component';
 import { CtaBannerComponent } from '../cta-banner/cta-banner.component';
 import { FooterComponent } from '../footer/footer.component';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
+import { EquipoService } from '../../services/equipo.service';
 
 @Component({
   selector: 'app-landing-page',
@@ -25,6 +26,7 @@ import { EquipoActivoService } from '../../services/equipo-activo.service';
 export class LandingPageComponent {
   private readonly router = inject(Router);
   private readonly equipoActivo = inject(EquipoActivoService);
+  private readonly equipoService = inject(EquipoService);
 
   authOpen = false;
   authMode: AuthMode = 'login';
@@ -45,7 +47,25 @@ export class LandingPageComponent {
 
   onAuthenticated() {
     this.authOpen = false;
-    const destino = this.equipoActivo.tieneEquipo() ? '/dashboard' : '/ligas';
-    this.router.navigate([destino]);
+
+    // Si ya hay un equipo activo en esta sesión, vamos directos al dashboard.
+    if (this.equipoActivo.tieneEquipo()) {
+      this.router.navigate(['/dashboard']);
+      return;
+    }
+
+    // El usuario puede tener equipos en el backend aunque sea un navegador nuevo
+    // (localStorage vacío). Consultamos antes de obligar a crear un equipo.
+    this.equipoService.listar().subscribe({
+      next: (equipos) => {
+        if (equipos.length > 0) {
+          this.equipoActivo.setEquipo(equipos[0].id);
+          this.router.navigate(['/dashboard']);
+        } else {
+          this.router.navigate(['/ligas']);
+        }
+      },
+      error: () => this.router.navigate(['/ligas']),
+    });
   }
 }

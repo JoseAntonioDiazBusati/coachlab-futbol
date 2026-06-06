@@ -50,6 +50,19 @@ function mapFdPosicion(position: string | null | undefined): string {
   }
 }
 
+/**
+ * Separa el nombre completo que devuelve football-data.org (p.ej.
+ * "Robert Lewandowski") en nombre + apellidos para que la API los almacene
+ * correctamente. La primera palabra es el nombre; el resto, los apellidos.
+ */
+export function splitNombre(full: string | null | undefined): { nombre: string; apellidos?: string } {
+  const limpio = (full ?? '').trim().replace(/\s+/g, ' ');
+  if (!limpio) return { nombre: 'Sin nombre' };
+  const partes = limpio.split(' ');
+  if (partes.length === 1) return { nombre: partes[0] };
+  return { nombre: partes[0], apellidos: partes.slice(1).join(' ') };
+}
+
 interface MatchStats {
   amarillas: number;
   rojas: number;
@@ -379,8 +392,10 @@ export class LigaPageComponent implements OnInit, OnDestroy {
             const payloads: CrearJugadorPayload[] = plantilla.map((j) => {
               const scorer = scorerMap.get(j.id);
               const match  = matchStatsMap.get(j.id);
+              const { nombre, apellidos } = splitNombre(j.name);
               return {
-                nombre:   j.name,
+                nombre,
+                apellidos,
                 posicion: mapFdPosicion(j.position),
                 dorsal:   j.shirtNumber ?? undefined,
                 edad:     j.dateOfBirth
