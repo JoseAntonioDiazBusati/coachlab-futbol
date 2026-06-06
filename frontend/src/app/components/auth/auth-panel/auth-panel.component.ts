@@ -1,6 +1,6 @@
 import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService, Rol } from '../../../services/auth.service';
 
 export type AuthMode = 'login' | 'register';
 
@@ -22,16 +22,11 @@ export class AuthPanelComponent {
   name     = '';
   email    = '';
   password = '';
+  rol: Rol = 'ENTRENADOR';
   error    = '';
   cargando = false;
   coldStart = false;
   private coldStartTimer?: ReturnType<typeof setTimeout>;
-
-  constructor() {
-    const defaults = this.authService.getDefaultUser();
-    this.email    = defaults.email;
-    this.password = defaults.password;
-  }
 
   onSubmit(): void {
     this.error = '';
@@ -48,7 +43,7 @@ export class AuthPanelComponent {
     const request$ =
       this.mode === 'login'
         ? this.authService.login(trimmedEmail, this.password)
-        : this.authService.register(this.name.trim() || 'Usuario', trimmedEmail, this.password);
+        : this.authService.register(this.name.trim() || 'Usuario', trimmedEmail, this.password, this.rol);
 
     request$.subscribe({
       next: () => {

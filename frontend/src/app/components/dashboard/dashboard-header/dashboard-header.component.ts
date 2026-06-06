@@ -93,7 +93,7 @@ export class DashboardHeaderComponent {
       .subscribe({
         next: (p) => {
           this.perfil = p;
-          this.authService.setCurrentUser({ email: p.email, nombre: p.nombre });
+          this.authService.setCurrentUser({ email: p.email, nombre: p.nombre, rol: this.authService.rol });
           this.guardandoDatos = false;
           if (emailCambia) {
             this.cerrarPerfil();

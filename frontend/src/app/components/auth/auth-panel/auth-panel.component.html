@@ -1,17 +1,17 @@
 @if (open) {
   <div class="auth-backdrop" (click)="onClose()"></div>
-  <section class="auth-panel" role="dialog" aria-modal="true">
+  <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
     <div class="auth-head">
       <div>
-        <p class="auth-eyebrow">Acceso rapido</p>
-        <h3 class="auth-title">{{ mode === 'login' ? 'Iniciar sesion' : 'Crear usuario' }}</h3>
+        <p class="auth-eyebrow">Acceso rápido</p>
+        <h3 class="auth-title" id="auth-title">{{ mode === 'login' ? 'Iniciar sesión' : 'Crear usuario' }}</h3>
       </div>
-      <button class="auth-close" type="button" (click)="onClose()">X</button>
+      <button class="auth-close" type="button" (click)="onClose()" aria-label="Cerrar">X</button>
     </div>
 
     <div class="auth-tabs">
       <button type="button" class="auth-tab" [class.active]="mode === 'login'" (click)="onSwitch('login')">
-        Iniciar sesion
+        Iniciar sesión
       </button>
       <button type="button" class="auth-tab" [class.active]="mode === 'register'" (click)="onSwitch('register')">
         Crear usuario
@@ -24,6 +24,14 @@
           <span>Nombre</span>
           <input type="text" name="name" [(ngModel)]="name" placeholder="Nombre del entrenador" />
         </label>
+
+        <label class="auth-field">
+          <span>Tipo de cuenta</span>
+          <select name="rol" [(ngModel)]="rol">
+            <option value="ENTRENADOR">Entrenador (gestiona su plantilla)</option>
+            <option value="OJEADOR">Ojeador (compara plantillas de otros)</option>
+          </select>
+        </label>
       }
 
       <label class="auth-field">
@@ -32,7 +40,7 @@
       </label>
 
       <label class="auth-field">
-        <span>Contrasena</span>
+        <span>Contraseña</span>
         <input type="password" name="password" [(ngModel)]="password" placeholder="********" required />
       </label>
 
@@ -48,10 +56,5 @@
         {{ cargando ? 'Accediendo...' : (mode === 'login' ? 'Entrar al dashboard' : 'Crear usuario') }}
       </button>
     </form>
-
-    <p class="auth-hint">
-      Usuario de prueba: <strong>demo@coachlab.test</strong> / <strong>coachlab123</strong>
-    </p>
   </section>
 }
-

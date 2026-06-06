@@ -22,10 +22,11 @@ public class JwtTokenProvider {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String email) {
+    public String generateToken(String email, String rol) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(email)
+                .claim("rol", rol)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))
                 .signWith(key)
@@ -39,6 +40,17 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
+    }
+
+    /** Rol contenido en el token; ENTRENADOR por defecto (tokens antiguos sin claim). */
+    public String getRolFromToken(String token) {
+        Object rol = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("rol");
+        return rol != null ? rol.toString() : "ENTRENADOR";
     }
 
     public boolean validateToken(String token) {

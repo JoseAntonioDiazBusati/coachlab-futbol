@@ -68,6 +68,16 @@ public class JugadorService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> rankingImpacto(Long equipoId) {
         equipoService.buscarPorId(equipoId);   // valida pertenencia del equipo
+        return construirRanking(equipoId);
+    }
+
+    /**
+     * Construye el ranking de impacto del equipo SIN validar la propiedad.
+     * Uso interno para la comparación de plantillas (solo lectura) entre equipos.
+     * La validación de existencia/permisos corresponde a quien lo invoque.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> construirRanking(Long equipoId) {
         List<Jugador> jugadores = jugadorRepository.findByEquipoId(equipoId);
 
         return jugadores.stream().map(j -> {

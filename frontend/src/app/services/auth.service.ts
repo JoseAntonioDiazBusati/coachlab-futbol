@@ -3,15 +3,19 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export type Rol = 'ENTRENADOR' | 'OJEADOR';
+
 interface AuthResponse {
   token: string;
   email: string;
   nombre: string;
+  rol: Rol;
 }
 
 export interface CurrentUser {
   email: string;
   nombre: string;
+  rol: Rol;
 }
 
 interface LoginRequest {
@@ -23,6 +27,7 @@ interface RegisterRequest {
   nombre: string;
   email: string;
   password: string;
+  rol: Rol;
 }
 
 const JWT_KEY = 'coachlab_jwt';
@@ -34,9 +39,6 @@ const USER_KEY = 'coachlab_user';
  * Almacena el JWT en localStorage (`coachlab_jwt`).
  * El token se adjunta automáticamente a cada petición autenticada
  * mediante `authInterceptor`.
- *
- * Credenciales demo: demo@coachlab.test / coachlab123
- * (creadas por el DataLoader del backend al arrancar).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -51,6 +53,19 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
+  /** Rol del usuario autenticado (ENTRENADOR por defecto si no hay sesión). */
+  get rol(): Rol {
+    return this.currentUserSubject.value?.rol ?? 'ENTRENADOR';
+  }
+
+  esEntrenador(): boolean {
+    return this.rol === 'ENTRENADOR';
+  }
+
+  esOjeador(): boolean {
+    return this.rol === 'OJEADOR';
+  }
+
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
@@ -58,11 +73,6 @@ export class AuthService {
   getToken(): string | null {
     if (typeof window === 'undefined') return null;
     return window.localStorage.getItem(JWT_KEY);
-  }
-
-  /** Credenciales del usuario demo para pre-rellenar el login en dev. */
-  getDefaultUser(): { email: string; password: string } {
-    return { email: 'demo@coachlab.test', password: 'coachlab123' };
   }
 
   /**
@@ -79,9 +89,14 @@ export class AuthService {
    * Registra un nuevo usuario y autentica automáticamente.
    * Devuelve un Observable que, al completar, almacena el JWT.
    */
-  register(nombre: string, email: string, password: string): Observable<AuthResponse> {
+  register(
+    nombre: string,
+    email: string,
+    password: string,
+    rol: Rol = 'ENTRENADOR',
+  ): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.base}/register`, { nombre, email, password } as RegisterRequest)
+      .post<AuthResponse>(`${this.base}/register`, { nombre, email, password, rol } as RegisterRequest)
       .pipe(tap((res) => this.guardarSesion(res)));
   }
 
@@ -103,7 +118,7 @@ export class AuthService {
 
   private guardarSesion(res: AuthResponse): void {
     this.saveToken(res.token);
-    this.setCurrentUser({ email: res.email, nombre: res.nombre });
+    this.setCurrentUser({ email: res.email, nombre: res.nombre, rol: res.rol ?? 'ENTRENADOR' });
   }
 
   private saveToken(token: string): void {
