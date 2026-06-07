@@ -3,6 +3,7 @@ package com.coachlab.coachlab.service;
 import com.coachlab.coachlab.dto.AuthResponse;
 import com.coachlab.coachlab.dto.LoginRequest;
 import com.coachlab.coachlab.dto.RegisterRequest;
+import com.coachlab.coachlab.model.Rol;
 import com.coachlab.coachlab.model.Usuario;
 import com.coachlab.coachlab.repository.UsuarioRepository;
 import com.coachlab.coachlab.security.CustomUserDetails;
@@ -31,10 +32,11 @@ public class AuthService {
                 .nombre(req.getNombre())
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
+                .rol(parseRol(req.getRol()))
                 .build();
         usuarioRepository.save(usuario);
-        String token = tokenProvider.generateToken(usuario.getEmail());
-        return new AuthResponse(token, usuario.getEmail(), usuario.getNombre());
+        String token = tokenProvider.generateToken(usuario.getEmail(), usuario.getRol().name());
+        return new AuthResponse(token, usuario.getEmail(), usuario.getNombre(), usuario.getRol().name());
     }
 
     public AuthResponse login(LoginRequest req) {
@@ -44,7 +46,17 @@ public class AuthService {
         Authentication auth = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
         Usuario usuario = ((CustomUserDetails) auth.getPrincipal()).getUsuario();
-        String token = tokenProvider.generateToken(usuario.getEmail());
-        return new AuthResponse(token, usuario.getEmail(), usuario.getNombre());
+        String token = tokenProvider.generateToken(usuario.getEmail(), usuario.getRol().name());
+        return new AuthResponse(token, usuario.getEmail(), usuario.getNombre(), usuario.getRol().name());
+    }
+
+    /** Convierte el rol del request a enum; ENTRENADOR si es nulo o inválido. */
+    private Rol parseRol(String rol) {
+        if (rol == null || rol.isBlank()) return Rol.ENTRENADOR;
+        try {
+            return Rol.valueOf(rol.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return Rol.ENTRENADOR;
+        }
     }
 }

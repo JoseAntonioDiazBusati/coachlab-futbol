@@ -1,6 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
+import { PartidoStatsTablaComponent } from './partido-stats-tabla/partido-stats-tabla.component';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { JugadorService, PlantillaJugador } from '../../services/jugador.service';
@@ -32,7 +33,7 @@ export interface NuevoPartidoForm {
 @Component({
   selector: 'app-registrar-partido-page',
   standalone: true,
-  imports: [FormsModule, DashboardHeaderComponent],
+  imports: [FormsModule, DashboardHeaderComponent, PartidoStatsTablaComponent],
   templateUrl: './registrar-partido-page.component.html',
   styleUrl: './registrar-partido-page.component.scss',
 })

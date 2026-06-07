@@ -11,8 +11,10 @@ import com.coachlab.coachlab.model.Partido;
 import com.coachlab.coachlab.repository.JugadorRepository;
 import com.coachlab.coachlab.repository.PartidoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -34,10 +36,16 @@ public class PartidoService {
         return partidoRepository.findByEquipoIdOrderByFechaDesc(equipoId);
     }
 
+    /**
+     * Busca un partido validando que pertenece al equipo indicado y que ese
+     * equipo es del usuario autenticado. Devuelve 404 si no existe o es ajeno.
+     */
     @Transactional(readOnly = true)
-    public Partido buscarPorId(Long id) {
-        return partidoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Partido no encontrado con id: " + id));
+    public Partido buscarPorId(Long equipoId, Long id) {
+        equipoService.buscarPorId(equipoId);   // valida pertenencia del equipo (404 si ajeno)
+        return partidoRepository.findByIdAndEquipoId(id, equipoId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Partido no encontrado con id: " + id));
     }
 
     public Partido crear(Long equipoId, Partido partido) {
@@ -45,8 +53,8 @@ public class PartidoService {
         return partidoRepository.save(partido);
     }
 
-    public Partido actualizar(Long id, Partido datos) {
-        Partido partido = buscarPorId(id);
+    public Partido actualizar(Long equipoId, Long id, Partido datos) {
+        Partido partido = buscarPorId(equipoId, id);   // valida pertenencia (404 si ajeno)
         partido.setFecha(datos.getFecha());
         partido.setRival(datos.getRival());
         partido.setEsLocal(datos.isEsLocal());
@@ -56,22 +64,23 @@ public class PartidoService {
         return partidoRepository.save(partido);
     }
 
-    public void eliminar(Long id) {
-        partidoRepository.deleteById(id);
+    public void eliminar(Long equipoId, Long id) {
+        Partido partido = buscarPorId(equipoId, id);   // valida pertenencia (404 si ajeno)
+        partidoRepository.delete(partido);
     }
 
     // ── Lecturas con detalle (dentro de transacción para resolver el lazy) ───
 
     /** Detalle completo de un partido (incluye estadísticas por jugador). */
     @Transactional(readOnly = true)
-    public PartidoDetalleDTO obtenerDetalle(Long id) {
-        return PartidoDetalleDTO.from(buscarPorId(id));
+    public PartidoDetalleDTO obtenerDetalle(Long equipoId, Long id) {
+        return PartidoDetalleDTO.from(buscarPorId(equipoId, id));
     }
 
     /** Solo las estadísticas por jugador de un partido. */
     @Transactional(readOnly = true)
-    public List<EstadisticaDetalleDTO> listarEstadisticas(Long id) {
-        return buscarPorId(id).getEstadisticasJugadores().stream()
+    public List<EstadisticaDetalleDTO> listarEstadisticas(Long equipoId, Long id) {
+        return buscarPorId(equipoId, id).getEstadisticasJugadores().stream()
                 .map(EstadisticaDetalleDTO::from)
                 .toList();
     }
@@ -110,7 +119,7 @@ public class PartidoService {
      * las del DTO). El {@code orphanRemoval} de la relación borra las viejas.
      */
     public PartidoDetalleDTO actualizarConEstadisticas(Long id, Long equipoId, PartidoConEstadisticasDTO dto) {
-        Partido partido = buscarPorId(id);
+        Partido partido = buscarPorId(equipoId, id);   // valida pertenencia (404 si ajeno)
         aplicarCampos(partido, dto);
 
         // Replace: limpiar la colección (orphanRemoval borra las huérfanas) y recrear.

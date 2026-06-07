@@ -1,6 +1,6 @@
 import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService, Rol } from '../../../services/auth.service';
 
 export type AuthMode = 'login' | 'register';
 
@@ -22,25 +22,36 @@ export class AuthPanelComponent {
   name     = '';
   email    = '';
   password = '';
+  rol: Rol = 'ENTRENADOR';
   error    = '';
   cargando = false;
   coldStart = false;
   private coldStartTimer?: ReturnType<typeof setTimeout>;
 
-  constructor() {
-    const defaults = this.authService.getDefaultUser();
-    this.email    = defaults.email;
-    this.password = defaults.password;
+  // ── Validación uniforme ──────────────────────────────────────────────────
+  private readonly emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  get emailInvalido(): boolean {
+    return !this.emailRegex.test(this.email.trim());
+  }
+
+  get passwordInvalido(): boolean {
+    return this.password.trim().length < 6;
+  }
+
+  /** El formulario es válido cuando email y contraseña cumplen las reglas. */
+  get formInvalido(): boolean {
+    return this.emailInvalido || this.passwordInvalido;
   }
 
   onSubmit(): void {
     this.error = '';
-    const trimmedEmail = this.email.trim();
-    if (!trimmedEmail || !this.password.trim()) {
-      this.error = 'Completa los campos requeridos.';
+    if (this.formInvalido) {
+      this.error = 'Revisa los campos marcados.';
       return;
     }
     if (this.cargando) return;
+    const trimmedEmail = this.email.trim();
 
     this.cargando = true;
     this.coldStartTimer = setTimeout(() => { this.coldStart = true; }, 5000);
@@ -48,7 +59,7 @@ export class AuthPanelComponent {
     const request$ =
       this.mode === 'login'
         ? this.authService.login(trimmedEmail, this.password)
-        : this.authService.register(this.name.trim() || 'Usuario', trimmedEmail, this.password);
+        : this.authService.register(this.name.trim() || 'Usuario', trimmedEmail, this.password, this.rol);
 
     request$.subscribe({
       next: () => {

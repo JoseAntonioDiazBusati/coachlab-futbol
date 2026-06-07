@@ -52,11 +52,12 @@ The application requires no installation and runs in any modern browser. It is d
 
 | Layer | Technology | Version |
 |---|---|---|
-| Frontend | Angular (SPA) | 19 |
+| Frontend | Angular (SPA) | 21 |
 | Web server | Nginx | Alpine |
 | Backend | Spring Boot | 3.4.1 |
 | Application server | Tomcat (embedded) | — |
-| Database | H2 (file persistence) | — |
+| Database | MySQL 8 (prod/Docker) · H2 (dev/test) | — |
+| API docs | springdoc-openapi (Swagger UI) | — |
 | Containerisation | Docker + Docker Compose | 24+ |
 | CI/CD | GitHub Actions | — |
 | Cloud hosting | Render.com | — |
@@ -64,7 +65,7 @@ The application requires no installation and runs in any modern browser. It is d
 
 **Frontend:** Angular Router, Angular HTTP Client, SCSS design tokens, Outfit and Inter typefaces via Google Fonts.
 
-**Backend:** Spring Security, JJWT, Spring Data JPA, Spring WebFlux (WebClient), Spring Boot Actuator, H2 database engine.
+**Backend:** Spring Security (JWT, roles ENTRENADOR/OJEADOR), JJWT, Spring Data JPA, MySQL Connector, Spring WebFlux (WebClient), Spring Boot Actuator, springdoc-openapi.
 
 ---
 
@@ -91,12 +92,12 @@ Internet
 |  Proxies requests to football-data |
 +------------------------------------+
     |
-    | JDBC (file)
+    | JDBC
     v
 +------------------------------------+
-|  H2 Database                       |
+|  MySQL 8                           |
 |  Docker volume: db-data            |
-|  /data/coachlabdb.mv.db            |
+|  (perfil dev/test usa H2 en memoria)|
 +------------------------------------+
 ```
 
@@ -206,18 +207,18 @@ export FD_API_KEY=your_api_key
 $env:JWT_SECRET = "dev-secret-change-me"
 $env:FD_API_KEY = "your_api_key"
 
-# Start the application
-mvn spring-boot:run
+# Start the application (perfil dev: H2 en memoria + datos demo, sin MySQL)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-The backend starts at `http://localhost:8080`. The H2 web console is available at `http://localhost:8080/h2-console` using the JDBC URL `jdbc:h2:file:./data/coachlabdb`.
+The backend starts at `http://localhost:8080`. In the `dev` profile the H2 web console is available at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:coachlabdev`), and the OpenAPI/Swagger UI at `http://localhost:8080/swagger-ui.html`. Production uses MySQL (see `.env.example` + `docker compose up`).
 
 ### Frontend
 
 ```bash
 cd frontend
 
-npm install
+npm ci       # instalación reproducible (usa package-lock.json)
 npm start    # Development server at http://localhost:4200, proxied to the backend
 npm test     # Run unit tests
 ```
@@ -355,7 +356,7 @@ mvn test
 
 ### Frontend
 
-Tests use Jasmine and Karma with Angular TestBed. Test files follow the Angular convention of `*.spec.ts` co-located with each component or service.
+Tests use Vitest with Angular TestBed (`ng test --no-watch`). Test files follow the Angular convention of `*.spec.ts` co-located with each component or service.
 
 ```bash
 cd frontend
@@ -364,7 +365,7 @@ npm test
 
 ### CI Test Execution
 
-Both test suites run automatically on every push and pull request targeting `main`. The Docker build and deployment steps only proceed if both test jobs pass successfully.
+Both test suites (`test.yml`) run automatically on every pull request targeting `main`. The Docker build & push workflow (`docker-image.yml`) runs on push to `main`, building and publishing the backend and frontend images and then triggering the Render deploy hooks.
 
 ### Manual Integration Tests
 
@@ -372,7 +373,7 @@ End-to-end scenarios were validated against both the local Docker Compose enviro
 
 | ID | Scenario | Expected result |
 |---|---|---|
-| T-01 | Register a new account | JWT returned, redirect to Setup |
+| T-01 | Register a new account | JWT returned, redirect to Ligas (or Dashboard if the user already has a team) |
 | T-02 | Login with valid credentials | JWT stored, redirect to Dashboard |
 | T-03 | Login with invalid credentials | 401 error message shown |
 | T-04 | Create team manually | Team saved, redirect to squad setup |
@@ -442,7 +443,8 @@ Both images use multi-stage builds. The backend discards the Maven toolchain in 
 | `SPRING_PROFILES_ACTIVE` | `prod` |
 | `JWT_SECRET` | Secure random string, minimum 256 bits |
 | `FD_API_KEY` | football-data.org API key |
-| `H2_PATH` | `/data/coachlabdb` |
+| `DB_HOST` / `DB_PORT` | MySQL host and port |
+| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | MySQL database and credentials |
 | `COACHLAB_CORS_ALLOWED_ORIGINS` | `https://coachlab-futbol-eeiq.onrender.com` |
 
 For the complete deployment documentation including network topology, health checks, Nginx configuration, and the full evidence for each assessment criterion (Criterio 1 through Criterio 8), see [docs/despliegue.md](docs/despliegue.md).
@@ -473,7 +475,7 @@ All project documentation is in the `docs/` directory.
 
 **Short term**
 
-- Migrate from H2 to PostgreSQL for data durability, concurrent access, and standard backup support.
+- Add versioned database migrations (Flyway/Liquibase) on top of the current MySQL setup, switching `ddl-auto` to `validate` in production.
 - Implement a password recovery flow using Spring Mail and a token-based reset link.
 - Allow a coach to manage multiple teams from a single account.
 - Add PDF and CSV export for season summaries, match history, and squad lists.

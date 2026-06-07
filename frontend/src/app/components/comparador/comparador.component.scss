@@ -1,0 +1,91 @@
+.comparador {
+  width: 100%;
+}
+
+.comparador-head {
+  margin-bottom: 1rem;
+}
+
+.comparador-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.comparador-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.comparador-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.comparador-col {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.comparador-select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font: inherit;
+  margin-bottom: 0.75rem;
+}
+
+.comparador-totales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+}
+
+.comparador-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 0.85rem;
+  }
+}
+
+.cmp-pos {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.cmp-impacto {
+  font-weight: 700;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.comparador-msg {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.comparador-error {
+  font-size: 0.85rem;
+  color: #c0392b;
+}

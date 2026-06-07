@@ -223,8 +223,25 @@ export class JugadorService {
   /**
    * Reemplaza la plantilla completa de forma atómica.
    * Interfaz sincrónica para compatibilidad con liga-page y sus tests.
+   *
+   * Persiste cada jugador en el backend (fire-and-forget) para que la API
+   * almacene la plantilla con sus nombres/apellidos. La copia local da feedback
+   * inmediato; `listarPlantilla()` refrescará luego con el ranking del backend.
    */
   importarPlantilla(equipoId: number, jugadores: CrearJugadorPayload[]): PlantillaJugador[] {
+    // Persistencia en backend (no bloquea la interfaz síncrona).
+    jugadores.forEach((payload) => {
+      this.http
+        .post(`${this.base}/${equipoId}/jugadores`, {
+          nombre:    payload.nombre,
+          apellidos: payload.apellidos,
+          dorsal:    payload.dorsal,
+          posicion:  payload.posicion,
+          edad:      payload.edad,
+        })
+        .subscribe({ error: () => { /* fallo silencioso — datos están en local */ } });
+    });
+
     const data = { ...this.jugadoresSubject.value };
     let id = 0;
     const nuevos: PlantillaJugador[] = jugadores.map((payload) => {

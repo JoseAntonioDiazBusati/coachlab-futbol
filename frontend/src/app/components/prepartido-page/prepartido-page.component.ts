@@ -2,9 +2,11 @@ import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboard-header.component';
+import { ComparadorComponent } from '../comparador/comparador.component';
 import { JugadorService, PlantillaJugador } from '../../services/jugador.service';
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
+import { AuthService } from '../../services/auth.service';
 
 export interface SlotCampo {
   id: number;
@@ -62,7 +64,7 @@ const POS_MAP: Record<string, string[]> = {
 @Component({
   selector: 'app-prepartido-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, DashboardHeaderComponent],
+  imports: [FormsModule, RouterLink, DashboardHeaderComponent, ComparadorComponent],
   templateUrl: './prepartido-page.component.html',
   styleUrl: './prepartido-page.component.scss',
 })
@@ -70,6 +72,12 @@ export class PrepartidoPageComponent implements OnInit {
   private readonly jugadorService = inject(JugadorService);
   private readonly equipoService  = inject(EquipoService);
   private readonly equipoActivo   = inject(EquipoActivoService);
+  private readonly authService    = inject(AuthService);
+
+  /** Un ojeador solo compara: no tiene plantilla propia para alinear. */
+  readonly esOjeador = this.authService.esOjeador();
+  /** Panel de comparación de plantillas (abierto por defecto para ojeadores). */
+  mostrarComparador = this.esOjeador;
 
   equipo: Equipo | null = null;
   jugadores: PlantillaJugador[] = [];
@@ -110,7 +118,12 @@ export class PrepartidoPageComponent implements OnInit {
 
   // ── Lifecycle ────────────────────────────────────
   ngOnInit(): void {
-    this.cargarEquipo();
+    // El ojeador no tiene equipo propio: solo usa el comparador.
+    if (!this.esOjeador) this.cargarEquipo();
+  }
+
+  toggleComparador(): void {
+    this.mostrarComparador = !this.mostrarComparador;
   }
 
   cargarEquipo(): void {
