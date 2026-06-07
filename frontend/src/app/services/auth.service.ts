@@ -66,13 +66,34 @@ export class AuthService {
     return this.rol === 'OJEADOR';
   }
 
+  /** True si hay token y no está caducado (según el claim `exp` del JWT). */
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    return !!token && !this.tokenCaducado(token);
   }
 
   getToken(): string | null {
     if (typeof window === 'undefined') return null;
     return window.localStorage.getItem(JWT_KEY);
+  }
+
+  /** Decodifica el payload del JWT; null si no es válido. */
+  private decodeToken(token: string): { exp?: number } | null {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(json) as { exp?: number };
+    } catch {
+      return null;
+    }
+  }
+
+  /** True si el token tiene `exp` y ya ha pasado. Si no se puede leer `exp`, se asume vigente. */
+  private tokenCaducado(token: string): boolean {
+    const payload = this.decodeToken(token);
+    if (!payload || typeof payload.exp !== 'number') return false;
+    return payload.exp * 1000 <= Date.now();
   }
 
   /**

@@ -47,6 +47,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/actuator/health/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
+                // Documentación OpenAPI / Swagger UI (pública para poder consultarla).
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // Comparar/explorar plantillas de otros equipos: cualquier rol autenticado (solo lectura).
                 .requestMatchers(HttpMethod.GET, "/api/explorar/**").authenticated()
                 // Escritura de equipos/plantillas/partidos: solo ENTRENADOR. El OJEADOR es de solo lectura.
