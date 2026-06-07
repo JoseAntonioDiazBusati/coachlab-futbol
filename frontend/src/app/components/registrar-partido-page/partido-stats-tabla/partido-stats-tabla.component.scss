@@ -1,0 +1,70 @@
+@import '../../../design/styles.scss';
+
+.section-sub {
+  font-size: $fs-lg;
+  color: $text-tertiary;
+}
+
+.stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-xs;
+}
+
+.stats-head,
+.stats-row {
+  display: grid;
+  // Jugador | Titular | 6 columnas de stats (goles, asist., min, amarillas, rojas, IRE)
+  grid-template-columns: minmax(140px, 1fr) 40px repeat(6, 1fr);
+  gap: $sp-sm;
+  align-items: center;
+  text-align: center;
+}
+
+.stats-head {
+  font-size: $fs-md;
+  font-weight: 600;
+  opacity: 0.7;
+
+  .stats-col-jugador { text-align: left; }
+}
+
+.stats-row {
+  padding: $sp-xs 0;
+
+  .stats-col-jugador {
+    display: flex;
+    align-items: center;
+    gap: $sp-xs;
+    font-size: $fs-lg;
+    text-align: left;
+  }
+}
+
+.stats-pos {
+  font-size: $fs-xs;
+  color: $text-quaternary;
+  margin-left: $sp-xs;
+}
+
+.titular-badge {
+  font-size: $fs-md;
+  text-align: center;
+  color: $text-muted;
+
+  &.is-titular { color: $primary; font-weight: $fw-semibold; }
+}
+
+.chip-dorsal {
+  font-family: $font-outfit;
+  font-weight: $fw-bold;
+  font-size: $fs-xs;
+  color: $primary;
+  background: $primary-transparent;
+  border-radius: $border-radius-full;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

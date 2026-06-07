@@ -34,14 +34,22 @@
         </label>
       }
 
-      <label class="auth-field">
+      <label class="auth-field" [class.auth-field--error]="email && emailInvalido">
         <span>Email</span>
-        <input type="email" name="email" [(ngModel)]="email" placeholder="correo@equipo.com" required />
+        <input type="email" name="email" [(ngModel)]="email" placeholder="correo@equipo.com"
+               [attr.aria-invalid]="(email && emailInvalido) || null" required />
+        @if (email && emailInvalido) {
+          <span class="auth-field-error">Introduce un email válido.</span>
+        }
       </label>
 
-      <label class="auth-field">
+      <label class="auth-field" [class.auth-field--error]="password && passwordInvalido">
         <span>Contraseña</span>
-        <input type="password" name="password" [(ngModel)]="password" placeholder="********" required />
+        <input type="password" name="password" [(ngModel)]="password" placeholder="********"
+               [attr.aria-invalid]="(password && passwordInvalido) || null" required />
+        @if (password && passwordInvalido) {
+          <span class="auth-field-error">La contraseña debe tener al menos 6 caracteres.</span>
+        }
       </label>
 
       @if (coldStart) {
@@ -52,7 +60,7 @@
         <p class="auth-error">{{ error }}</p>
       }
 
-      <button class="auth-submit" type="submit" [disabled]="cargando">
+      <button class="auth-submit" type="submit" [disabled]="formInvalido || cargando">
         {{ cargando ? 'Accediendo...' : (mode === 'login' ? 'Entrar al dashboard' : 'Crear usuario') }}
       </button>
     </form>

@@ -28,14 +28,30 @@ export class AuthPanelComponent {
   coldStart = false;
   private coldStartTimer?: ReturnType<typeof setTimeout>;
 
+  // ── Validación uniforme ──────────────────────────────────────────────────
+  private readonly emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  get emailInvalido(): boolean {
+    return !this.emailRegex.test(this.email.trim());
+  }
+
+  get passwordInvalido(): boolean {
+    return this.password.trim().length < 6;
+  }
+
+  /** El formulario es válido cuando email y contraseña cumplen las reglas. */
+  get formInvalido(): boolean {
+    return this.emailInvalido || this.passwordInvalido;
+  }
+
   onSubmit(): void {
     this.error = '';
-    const trimmedEmail = this.email.trim();
-    if (!trimmedEmail || !this.password.trim()) {
-      this.error = 'Completa los campos requeridos.';
+    if (this.formInvalido) {
+      this.error = 'Revisa los campos marcados.';
       return;
     }
     if (this.cargando) return;
+    const trimmedEmail = this.email.trim();
 
     this.cargando = true;
     this.coldStartTimer = setTimeout(() => { this.coldStart = true; }, 5000);

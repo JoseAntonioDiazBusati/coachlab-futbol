@@ -107,6 +107,15 @@
   border-color: $primary;
 }
 
+.auth-field--error input {
+  border-color: $danger;
+}
+
+.auth-field-error {
+  color: $danger;
+  font-size: $fs-sm;
+}
+
 .auth-error {
   color: $danger;
   font-size: $fs-sm;
