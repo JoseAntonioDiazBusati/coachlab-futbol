@@ -10,6 +10,22 @@
     </p>
   </div>
 
+  @if (esOjeador) {
+
+    <!-- ── Ojeador: solo comparación de plantillas ── -->
+    <app-comparador></app-comparador>
+
+  } @else {
+
+  <div class="prepartido-actions">
+    <button type="button" class="btn-outline" (click)="toggleComparador()">
+      {{ mostrarComparador ? 'Ocultar comparador' : 'Comparar plantillas de otros equipos' }}
+    </button>
+  </div>
+  @if (mostrarComparador) {
+    <app-comparador></app-comparador>
+  }
+
   @if (cargando) {
 
     <!-- ── Cargando ──────────────────────────────── -->
@@ -312,5 +328,7 @@
     </div><!-- /prob-section -->
 
   }<!-- /else -->
+
+  }<!-- /esOjeador else -->
 
 </section>

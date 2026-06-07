@@ -8,6 +8,7 @@ import { CtaBannerComponent } from '../cta-banner/cta-banner.component';
 import { FooterComponent } from '../footer/footer.component';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { EquipoService } from '../../services/equipo.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-landing-page',
@@ -27,6 +28,7 @@ export class LandingPageComponent {
   private readonly router = inject(Router);
   private readonly equipoActivo = inject(EquipoActivoService);
   private readonly equipoService = inject(EquipoService);
+  private readonly authService = inject(AuthService);
 
   authOpen = false;
   authMode: AuthMode = 'login';
@@ -47,6 +49,12 @@ export class LandingPageComponent {
 
   onAuthenticated() {
     this.authOpen = false;
+
+    // El ojeador no gestiona equipos: va directo al comparador de plantillas.
+    if (this.authService.esOjeador()) {
+      this.router.navigate(['/prepartido']);
+      return;
+    }
 
     // Si ya hay un equipo activo en esta sesión, vamos directos al dashboard.
     if (this.equipoActivo.tieneEquipo()) {

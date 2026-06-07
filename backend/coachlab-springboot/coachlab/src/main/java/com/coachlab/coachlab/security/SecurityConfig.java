@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -46,6 +47,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/actuator/health/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
+                // Comparar/explorar plantillas de otros equipos: cualquier rol autenticado (solo lectura).
+                .requestMatchers(HttpMethod.GET, "/api/explorar/**").authenticated()
+                // Escritura de equipos/plantillas/partidos: solo ENTRENADOR. El OJEADOR es de solo lectura.
+                .requestMatchers(HttpMethod.POST,   "/api/equipos/**").hasRole("ENTRENADOR")
+                .requestMatchers(HttpMethod.PUT,    "/api/equipos/**").hasRole("ENTRENADOR")
+                .requestMatchers(HttpMethod.DELETE, "/api/equipos/**").hasRole("ENTRENADOR")
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )
