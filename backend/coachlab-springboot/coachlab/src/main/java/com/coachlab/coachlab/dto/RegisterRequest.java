@@ -13,4 +13,6 @@ public class RegisterRequest {
     private String email;
     @NotBlank @Size(min = 6)
     private String password;
+    /** Rol opcional: "ENTRENADOR" (por defecto) u "OJEADOR". */
+    private String rol;
 }

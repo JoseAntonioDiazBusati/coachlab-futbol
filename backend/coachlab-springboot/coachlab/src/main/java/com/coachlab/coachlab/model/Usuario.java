@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,6 +34,16 @@ public class Usuario {
     /** Contraseña codificada con BCrypt. */
     @NotBlank
     private String password;
+
+    /**
+     * Rol del usuario. ENTRENADOR (por defecto) edita sus plantillas; OJEADOR
+     * solo consulta/compara plantillas de otros equipos.
+     */
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'ENTRENADOR'")
+    @Column(nullable = false)
+    @Builder.Default
+    private Rol rol = Rol.ENTRENADOR;
 
     /** Momento de alta de la cuenta. Se fija una sola vez al persistir. */
     @Column(updatable = false)

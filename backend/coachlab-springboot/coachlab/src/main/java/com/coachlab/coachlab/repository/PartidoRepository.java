@@ -18,6 +18,9 @@ public interface PartidoRepository extends JpaRepository<Partido, Long> {
 
     List<Partido> findByEquipoIdAndResultado(Long equipoId, ResultadoPartido resultado);
 
+    // Aislamiento por propietario: solo encuentra el partido si pertenece al equipo dado.
+    Optional<Partido> findByIdAndEquipoId(Long id, Long equipoId);
+
     // Idempotencia de importaciones FD: evita duplicar el mismo match en un equipo.
     Optional<Partido> findByExternalIdAndEquipoId(Long externalId, Long equipoId);
 

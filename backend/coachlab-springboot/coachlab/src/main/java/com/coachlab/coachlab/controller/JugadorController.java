@@ -32,7 +32,7 @@ public class JugadorController {
     // GET /api/equipos/{equipoId}/jugadores/{id}
     @GetMapping("/{id}")
     public Jugador obtener(@PathVariable Long equipoId, @PathVariable Long id) {
-        return jugadorService.buscarPorId(id);
+        return jugadorService.buscarPorId(equipoId, id);
     }
 
     // POST /api/equipos/{equipoId}/jugadores
@@ -47,13 +47,13 @@ public class JugadorController {
     public Jugador actualizar(@PathVariable Long equipoId,
                                @PathVariable Long id,
                                @Valid @RequestBody Jugador jugador) {
-        return jugadorService.actualizar(id, jugador);
+        return jugadorService.actualizar(equipoId, id, jugador);
     }
 
     // DELETE /api/equipos/{equipoId}/jugadores/{id}
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void eliminar(@PathVariable Long equipoId, @PathVariable Long id) {
-        jugadorService.eliminar(id);
+        jugadorService.eliminar(equipoId, id);
     }
 }

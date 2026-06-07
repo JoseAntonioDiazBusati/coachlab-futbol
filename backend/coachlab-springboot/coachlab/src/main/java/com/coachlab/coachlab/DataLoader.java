@@ -4,6 +4,7 @@ import com.coachlab.coachlab.model.*;
 import com.coachlab.coachlab.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -11,9 +12,14 @@ import java.time.LocalDate;
 
 /**
  * Carga datos de ejemplo al arrancar la aplicación.
- * Sólo ejecuta la carga si la base de datos está vacía (compatible con H2 file y reintentos).
+ *
+ * <p><strong>Seguridad operacional:</strong> solo se activa cuando
+ * {@code coachlab.seed-demo=true} (perfil dev). En test y producción NO se
+ * ejecuta, por lo que no se crea el usuario demo ni se imprimen credenciales
+ * en los logs de un despliegue real.</p>
  */
 @Component
+@ConditionalOnProperty(name = "coachlab.seed-demo", havingValue = "true")
 @RequiredArgsConstructor
 public class DataLoader implements CommandLineRunner {
 

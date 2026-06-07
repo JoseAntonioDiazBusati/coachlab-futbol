@@ -1,0 +1,34 @@
+@if (estadisticas.length === 0) {
+  <p class="section-sub">Este partido no tiene estadísticas registradas.</p>
+} @else {
+  <div class="stats-table">
+    <div class="stats-head">
+      <span class="stats-col-jugador">Jugador</span>
+      <span title="Titular">T</span>
+      <span title="Goles">Goles</span>
+      <span title="Asistencias">Asist.</span>
+      <span title="Minutos jugados">Min</span>
+      <span title="Tarjetas amarillas">Amarillas</span>
+      <span title="Tarjetas rojas">Rojas</span>
+      <span title="Índice de Rendimiento">IRE</span>
+    </div>
+    @for (e of estadisticas; track trackByJugador($index, e)) {
+      <div class="stats-row">
+        <span class="stats-col-jugador">
+          @if (e.dorsal !== undefined && e.dorsal !== null) {
+            <span class="chip-dorsal">{{ e.dorsal }}</span>
+          }
+          {{ e.nombre }}
+          <span class="stats-pos">{{ e.posicion }}</span>
+        </span>
+        <span class="titular-badge" [class.is-titular]="e.esTitular">{{ e.esTitular ? '✓' : '—' }}</span>
+        <span>{{ e.goles }}</span>
+        <span>{{ e.asistencias }}</span>
+        <span>{{ e.minutosJugados }}</span>
+        <span>{{ e.tarjetasAmarillas }}</span>
+        <span>{{ e.tarjetasRojas }}</span>
+        <span>{{ e.impacto }}</span>
+      </div>
+    }
+  </div>
+}

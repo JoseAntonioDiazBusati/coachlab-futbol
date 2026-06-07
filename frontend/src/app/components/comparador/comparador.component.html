@@ -1,0 +1,82 @@
+<div class="comparador">
+  <header class="comparador-head">
+    <h3 class="comparador-title">Comparar plantillas</h3>
+    <p class="comparador-sub">Selecciona dos equipos para comparar sus plantillas y alineaciones.</p>
+  </header>
+
+  @if (cargandoEquipos) {
+    <p class="comparador-msg">Cargando equipos…</p>
+  } @else if (error) {
+    <p class="comparador-error">{{ error }}</p>
+  } @else {
+    <div class="comparador-grid">
+      <!-- Columna A -->
+      <section class="comparador-col">
+        <select class="comparador-select" [(ngModel)]="equipoAId" (ngModelChange)="cambiarA()"
+                aria-label="Equipo A">
+          <option [ngValue]="null">— Elegir equipo —</option>
+          @for (e of equipos; track e.id) {
+            <option [ngValue]="e.id">{{ e.nombre }}</option>
+          }
+        </select>
+
+        @if (cargandoA) {
+          <p class="comparador-msg">Cargando plantilla…</p>
+        } @else if (equipoAId !== null) {
+          <div class="comparador-totales">
+            <span>Impacto total: <strong>{{ totalImpacto(plantillaA) }}</strong></span>
+            <span>Goles: <strong>{{ totalGoles(plantillaA) }}</strong></span>
+            <span>Jugadores: <strong>{{ plantillaA.length }}</strong></span>
+          </div>
+          @if (plantillaA.length === 0) {
+            <p class="comparador-msg">Sin jugadores registrados.</p>
+          } @else {
+            <ul class="comparador-lista">
+              @for (j of plantillaA; track trackByJugador($index, j)) {
+                <li>
+                  <span class="cmp-nombre">{{ j.nombre }}</span>
+                  <span class="cmp-pos">{{ j.posicion }}</span>
+                  <span class="cmp-impacto">{{ j.impacto }}</span>
+                </li>
+              }
+            </ul>
+          }
+        }
+      </section>
+
+      <!-- Columna B -->
+      <section class="comparador-col">
+        <select class="comparador-select" [(ngModel)]="equipoBId" (ngModelChange)="cambiarB()"
+                aria-label="Equipo B">
+          <option [ngValue]="null">— Elegir equipo —</option>
+          @for (e of equipos; track e.id) {
+            <option [ngValue]="e.id">{{ e.nombre }}</option>
+          }
+        </select>
+
+        @if (cargandoB) {
+          <p class="comparador-msg">Cargando plantilla…</p>
+        } @else if (equipoBId !== null) {
+          <div class="comparador-totales">
+            <span>Impacto total: <strong>{{ totalImpacto(plantillaB) }}</strong></span>
+            <span>Goles: <strong>{{ totalGoles(plantillaB) }}</strong></span>
+            <span>Jugadores: <strong>{{ plantillaB.length }}</strong></span>
+          </div>
+          @if (plantillaB.length === 0) {
+            <p class="comparador-msg">Sin jugadores registrados.</p>
+          } @else {
+            <ul class="comparador-lista">
+              @for (j of plantillaB; track trackByJugador($index, j)) {
+                <li>
+                  <span class="cmp-nombre">{{ j.nombre }}</span>
+                  <span class="cmp-pos">{{ j.posicion }}</span>
+                  <span class="cmp-impacto">{{ j.impacto }}</span>
+                </li>
+              }
+            </ul>
+          }
+        }
+      </section>
+    </div>
+  }
+</div>
