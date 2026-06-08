@@ -2,7 +2,10 @@ package com.coachlab.coachlab.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -23,13 +26,26 @@ public class Jugador {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Solo caracteres alfabéticos (con acentos), espacios y los signos típicos de
+    // nombres compuestos (' . -). No se permiten números.
     @NotBlank(message = "El nombre del jugador es obligatorio")
+    @Pattern(regexp = "^[\\p{L}][\\p{L} .'\\-]*$",
+             message = "El nombre solo puede contener letras (sin números)")
     @Column(nullable = false)
     private String nombre;
 
+    @Pattern(regexp = "^[\\p{L} .'\\-]*$",
+             message = "Los apellidos solo pueden contener letras (sin números)")
     private String apellidos;
+
+    @Positive(message = "El dorsal debe ser un número positivo")
+    @Max(value = 99, message = "El dorsal no puede ser mayor que 99")
     private Integer dorsal;
+
     private String posicion;        // Ej: "Portero", "Defensa", "Centrocampista", "Delantero"
+
+    @Positive(message = "La edad debe ser un número positivo")
+    @Max(value = 120, message = "La edad no es válida")
     private Integer edad;
 
     // Id del jugador en football-data.org (si se importó la plantilla desde la API).

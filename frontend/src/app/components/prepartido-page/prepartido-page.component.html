@@ -17,15 +17,6 @@
 
   } @else {
 
-  <div class="prepartido-actions">
-    <button type="button" class="btn-outline" (click)="toggleComparador()">
-      {{ mostrarComparador ? 'Ocultar comparador' : 'Comparar plantillas de otros equipos' }}
-    </button>
-  </div>
-  @if (mostrarComparador) {
-    <app-comparador></app-comparador>
-  }
-
   @if (cargando) {
 
     <!-- ── Cargando ──────────────────────────────── -->

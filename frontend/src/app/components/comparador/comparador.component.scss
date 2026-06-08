@@ -35,6 +35,20 @@
   background: rgba(0, 0, 0, 0.015);
 }
 
+.fuente-toggle {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+  }
+}
+
 .comparador-select {
   width: 100%;
   padding: 0.5rem;
@@ -42,6 +56,12 @@
   border: 1px solid rgba(0, 0, 0, 0.15);
   font: inherit;
   margin-bottom: 0.75rem;
+}
+
+.comparador-nota {
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  opacity: 0.6;
 }
 
 .comparador-totales {
