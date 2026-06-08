@@ -21,6 +21,10 @@ RUN addgroup -S coachlab && adduser -S coachlab -G coachlab
 RUN chown -R coachlab:coachlab /app /data
 USER coachlab
 
+# La imagen arranca en perfil prod por defecto (MySQL). Render/Compose pueden
+# sobrescribirlo con SPRING_PROFILES_ACTIVE si hiciera falta.
+ENV SPRING_PROFILES_ACTIVE=prod
+
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
