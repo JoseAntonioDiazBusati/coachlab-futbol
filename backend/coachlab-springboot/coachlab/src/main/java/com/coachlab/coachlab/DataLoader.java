@@ -67,8 +67,9 @@ public class DataLoader implements CommandLineRunner {
         Usuario entrenador2 = crearUsuario("Lucía Entrenadora",  "entrenador2@coachlab.test", Rol.ENTRENADOR);
         crearUsuario("Óscar Ojeador", "ojeador@coachlab.test", Rol.OJEADOR);
 
-        crearEquipoConDatos(entrenador1, "CD Atlético Coachlab", "Amateur Senior", "Madrid", 15);
-        crearEquipoConDatos(entrenador2, "Racing de los Pinos",  "Regional",       "Sevilla", 18);
+        // Offsets de nombres distintos por equipo → plantillas diferentes.
+        crearEquipoConDatos(entrenador1, "CD Atlético Coachlab", "Amateur Senior", "Madrid", 15, 0, 0, 1);
+        crearEquipoConDatos(entrenador2, "Racing de los Pinos",  "Regional",       "Sevilla", 18, 9, 4, 2);
 
         System.out.println("""
 
@@ -89,8 +90,17 @@ public class DataLoader implements CommandLineRunner {
                 .build());
     }
 
-    /** Crea un equipo con {@code numJugadores} y un partido con estadísticas por jugador. */
-    private void crearEquipoConDatos(Usuario dueno, String nombre, String categoria, String ciudad, int numJugadores) {
+    private static final String[] RIVALES = {"Unión Deportiva", "CF Costa", "Atlético del Sur"};
+    private static final int[][] MARCADORES = {{3, 1}, {2, 2}, {1, 0}};
+
+    /**
+     * Crea un equipo con {@code numJugadores} (nombres únicos según los offsets)
+     * y 3 partidos registrados con estadísticas por jugador. Las estadísticas son
+     * deterministas (no aleatorias) y se acumulan desde esos partidos, de modo que
+     * el ranking y la comparación reflejan datos reales de partidos disputados.
+     */
+    private void crearEquipoConDatos(Usuario dueno, String nombre, String categoria, String ciudad,
+                                     int numJugadores, int offNombre, int offApellido, int teamSeed) {
         Equipo equipo = equipoRepo.save(Equipo.builder()
                 .nombre(nombre).categoria(categoria).temporada("2024/2025")
                 .ciudad(ciudad).usuario(dueno).build());
@@ -98,42 +108,48 @@ public class DataLoader implements CommandLineRunner {
         List<Jugador> jugadores = new ArrayList<>();
         for (int i = 0; i < numJugadores; i++) {
             jugadores.add(jugadorRepo.save(Jugador.builder()
-                    .nombre(NOMBRES[i % NOMBRES.length])
-                    .apellidos(APELLIDOS[i % APELLIDOS.length])
+                    .nombre(NOMBRES[(i + offNombre) % NOMBRES.length])
+                    .apellidos(APELLIDOS[(i + offApellido) % APELLIDOS.length])
                     .dorsal(i + 1)
                     .posicion(POSICIONES[i % POSICIONES.length])
-                    .edad(18 + (i % 15))
+                    .edad(18 + ((i * 2 + teamSeed) % 18))
                     .equipo(equipo)
                     .build()));
         }
 
-        // Un partido reciente con estadísticas (para que el ranking/comparación tenga datos).
-        Partido partido = partidoRepo.save(Partido.builder()
-                .fecha(LocalDate.now().minusWeeks(1))
-                .rival("Rival CF").esLocal(true)
-                .golesAFavor(3).golesEnContra(1)
-                .competicion("Liga").origen(OrigenPartido.MANUAL)
-                .equipo(equipo).build());
+        // 3 partidos recientes con estadísticas → datos reales para ranking/comparación.
+        for (int m = 0; m < MARCADORES.length; m++) {
+            Partido partido = partidoRepo.save(Partido.builder()
+                    .fecha(LocalDate.now().minusWeeks(MARCADORES.length - m))
+                    .rival(RIVALES[m]).esLocal(m % 2 == 0)
+                    .golesAFavor(MARCADORES[m][0]).golesEnContra(MARCADORES[m][1])
+                    .competicion("Liga").origen(OrigenPartido.MANUAL)
+                    .equipo(equipo).build());
 
-        for (int i = 0; i < jugadores.size(); i++) {
-            Jugador j = jugadores.get(i);
-            boolean titular = i < 11;
-            int minutos = titular ? 90 : (i < 14 ? 25 : 0);
-            if (minutos == 0) continue;   // no participó
+            for (int i = 0; i < jugadores.size(); i++) {
+                Jugador j = jugadores.get(i);
+                boolean titular = i < 11;
+                int minutos = titular ? 90 : (i < 14 ? (20 + ((i + m) % 4) * 10) : 0);
+                if (minutos == 0) continue;   // no participó en este partido
 
-            String pos = j.getPosicion();
-            int goles = "Delantero".equals(pos) ? 1 + (i % 2)
-                      : ("Centrocampista".equals(pos) && i % 2 == 0 ? 1 : 0);
-            int asistencias = (i % 3 == 0) ? 1 : 0;
-            int amarillas   = (i % 6 == 0) ? 1 : 0;
+                // Semilla determinista por equipo/partido/jugador → estadísticas variadas.
+                int seed = teamSeed * 100 + m * 31 + i * 7;
+                String pos = j.getPosicion();
+                int goles = "Delantero".equals(pos) ? (seed % 3)
+                          : "Centrocampista".equals(pos) ? (seed % 2)
+                          : 0;
+                int asistencias = (seed % 4 == 0) ? 1 + (seed % 2) : 0;
+                int amarillas   = (seed % 5 == 0) ? 1 : 0;
+                int rojas       = (seed % 23 == 0) ? 1 : 0;
 
-            estadisticaRepo.save(EstadisticaJugador.builder()
-                    .jugador(j).partido(partido)
-                    .goles(goles).asistencias(asistencias)
-                    .minutosJugados(minutos)
-                    .tarjetasAmarillas(amarillas).tarjetasRojas(0)
-                    .esTitular(titular)
-                    .build());
+                estadisticaRepo.save(EstadisticaJugador.builder()
+                        .jugador(j).partido(partido)
+                        .goles(goles).asistencias(asistencias)
+                        .minutosJugados(minutos)
+                        .tarjetasAmarillas(amarillas).tarjetasRojas(rojas)
+                        .esTitular(titular)
+                        .build());
+            }
         }
     }
 }

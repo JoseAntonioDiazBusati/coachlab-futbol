@@ -1,82 +1,89 @@
 <div class="comparador">
   <header class="comparador-head">
     <h3 class="comparador-title">Comparar plantillas</h3>
-    <p class="comparador-sub">Selecciona dos equipos para comparar sus plantillas y alineaciones.</p>
+    <p class="comparador-sub">Elige dos equipos (de la app o de la API) para comparar sus plantillas.</p>
   </header>
 
-  @if (cargandoEquipos) {
+  @if (cargandoListas) {
     <p class="comparador-msg">Cargando equipos…</p>
   } @else if (error) {
     <p class="comparador-error">{{ error }}</p>
   } @else {
     <div class="comparador-grid">
-      <!-- Columna A -->
-      <section class="comparador-col">
-        <select class="comparador-select" [(ngModel)]="equipoAId" (ngModelChange)="cambiarA()"
-                aria-label="Equipo A">
-          <option [ngValue]="null">— Elegir equipo —</option>
-          @for (e of equipos; track e.id) {
-            <option [ngValue]="e.id">{{ e.nombre }}</option>
-          }
-        </select>
-
-        @if (cargandoA) {
-          <p class="comparador-msg">Cargando plantilla…</p>
-        } @else if (equipoAId !== null) {
-          <div class="comparador-totales">
-            <span>Impacto total: <strong>{{ totalImpacto(plantillaA) }}</strong></span>
-            <span>Goles: <strong>{{ totalGoles(plantillaA) }}</strong></span>
-            <span>Jugadores: <strong>{{ plantillaA.length }}</strong></span>
+      @for (lado of lados; track $index) {
+        <section class="comparador-col">
+          <!-- Fuente: app o API -->
+          <div class="fuente-toggle">
+            <label>
+              <input type="radio" name="fuente{{ $index }}" value="app"
+                     [(ngModel)]="lado.fuente" (ngModelChange)="cambiarFuente(lado)" />
+              Equipo de la app
+            </label>
+            <label>
+              <input type="radio" name="fuente{{ $index }}" value="api"
+                     [(ngModel)]="lado.fuente" (ngModelChange)="cambiarFuente(lado)" />
+              Equipo de la API
+            </label>
           </div>
-          @if (plantillaA.length === 0) {
-            <p class="comparador-msg">Sin jugadores registrados.</p>
-          } @else {
-            <ul class="comparador-lista">
-              @for (j of plantillaA; track trackByJugador($index, j)) {
-                <li>
-                  <span class="cmp-nombre">{{ j.nombre }}</span>
-                  <span class="cmp-pos">{{ j.posicion }}</span>
-                  <span class="cmp-impacto">{{ j.impacto }}</span>
-                </li>
-              }
-            </ul>
-          }
-        }
-      </section>
 
-      <!-- Columna B -->
-      <section class="comparador-col">
-        <select class="comparador-select" [(ngModel)]="equipoBId" (ngModelChange)="cambiarB()"
-                aria-label="Equipo B">
-          <option [ngValue]="null">— Elegir equipo —</option>
-          @for (e of equipos; track e.id) {
-            <option [ngValue]="e.id">{{ e.nombre }}</option>
-          }
-        </select>
-
-        @if (cargandoB) {
-          <p class="comparador-msg">Cargando plantilla…</p>
-        } @else if (equipoBId !== null) {
-          <div class="comparador-totales">
-            <span>Impacto total: <strong>{{ totalImpacto(plantillaB) }}</strong></span>
-            <span>Goles: <strong>{{ totalGoles(plantillaB) }}</strong></span>
-            <span>Jugadores: <strong>{{ plantillaB.length }}</strong></span>
-          </div>
-          @if (plantillaB.length === 0) {
-            <p class="comparador-msg">Sin jugadores registrados.</p>
-          } @else {
-            <ul class="comparador-lista">
-              @for (j of plantillaB; track trackByJugador($index, j)) {
-                <li>
-                  <span class="cmp-nombre">{{ j.nombre }}</span>
-                  <span class="cmp-pos">{{ j.posicion }}</span>
-                  <span class="cmp-impacto">{{ j.impacto }}</span>
-                </li>
+          @if (lado.fuente === 'app') {
+            <select class="comparador-select" [(ngModel)]="lado.equipoAppId"
+                    (ngModelChange)="cambiarEquipoApp(lado)" aria-label="Equipo de la app">
+              <option [ngValue]="null">— Elegir equipo —</option>
+              @for (e of equiposApp; track e.id) {
+                <option [ngValue]="e.id">{{ e.nombre }}</option>
               }
-            </ul>
+            </select>
+          } @else {
+            <select class="comparador-select" [(ngModel)]="lado.competicionCode"
+                    (ngModelChange)="cambiarCompeticion(lado)" aria-label="Liga">
+              <option [ngValue]="null">— Elegir liga —</option>
+              @for (c of competiciones; track c.id) {
+                <option [ngValue]="c.code">{{ c.name }}</option>
+              }
+            </select>
+            @if (lado.cargandoEquiposApi) {
+              <p class="comparador-msg">Cargando equipos…</p>
+            } @else if (lado.competicionCode) {
+              <select class="comparador-select" [(ngModel)]="lado.equipoApiId"
+                      (ngModelChange)="cambiarEquipoApi(lado)" aria-label="Equipo de la API">
+                <option [ngValue]="null">— Elegir equipo —</option>
+                @for (e of lado.equiposApi; track e.id) {
+                  <option [ngValue]="e.id">{{ e.name }}</option>
+                }
+              </select>
+            }
           }
-        }
-      </section>
+
+          @if (lado.cargando) {
+            <p class="comparador-msg">Cargando plantilla…</p>
+          } @else if (lado.nombre) {
+            <div class="comparador-totales">
+              <span>Impacto: <strong>{{ totalImpacto(lado.plantilla) }}</strong></span>
+              <span>Goles: <strong>{{ totalGoles(lado.plantilla) }}</strong></span>
+              <span>Jugadores: <strong>{{ lado.plantilla.length }}</strong></span>
+            </div>
+            @if (lado.plantilla.length === 0) {
+              <p class="comparador-msg">Sin jugadores.</p>
+            } @else {
+              <ul class="comparador-lista">
+                @for (j of lado.plantilla; track trackByJugador($index, j)) {
+                  <li>
+                    <span class="cmp-nombre">{{ j.nombre }}</span>
+                    <span class="cmp-pos">{{ j.posicion }}</span>
+                    <span class="cmp-impacto">{{ j.impacto }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </section>
+      }
     </div>
+
+    <p class="comparador-nota">
+      Los equipos de la API muestran su plantilla; las estadísticas individuales
+      no están disponibles en el plan gratuito de football-data.org.
+    </p>
   }
 </div>

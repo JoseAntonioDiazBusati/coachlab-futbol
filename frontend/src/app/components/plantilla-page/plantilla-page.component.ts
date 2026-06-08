@@ -150,6 +150,24 @@ export class PlantillaPageComponent implements OnInit {
       this.error = 'El nombre del jugador es obligatorio.';
       return;
     }
+    // Solo letras (con acentos), espacios y signos de nombres compuestos. Sin números.
+    const soloLetras = /^[\p{L}][\p{L} .'\-]*$/u;
+    if (!soloLetras.test(this.nuevo.nombre.trim())) {
+      this.error = 'El nombre solo puede contener letras (sin números).';
+      return;
+    }
+    if (this.nuevo.apellidos?.trim() && !/^[\p{L} .'\-]*$/u.test(this.nuevo.apellidos.trim())) {
+      this.error = 'Los apellidos solo pueden contener letras (sin números).';
+      return;
+    }
+    if (this.nuevo.dorsal != null && (this.nuevo.dorsal <= 0 || this.nuevo.dorsal > 99)) {
+      this.error = 'El dorsal debe ser un número entre 1 y 99.';
+      return;
+    }
+    if (this.nuevo.edad != null && this.nuevo.edad <= 0) {
+      this.error = 'La edad debe ser un número positivo.';
+      return;
+    }
     if (!this.nuevo.posicion) {
       this.posicionInvalida = true;
       this.error = 'Selecciona una posición para el jugador.';
