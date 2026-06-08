@@ -42,16 +42,15 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- H2 Database — perfil 'dev' (desarrollo local sin MySQL) y tests.
-             Scope runtime: necesario en el classpath de ejecución para que el
-             perfil dev pueda usar org.h2.Driver. En prod se usa MySQL igualmente. -->
+        <!-- H2 — SOLO para los tests (base en memoria, rápida y sin dependencias).
+             La aplicación usa MySQL siempre; H2 nunca llega al runtime de la app. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
-        <!-- MySQL Connector (producción y Docker) -->
+        <!-- MySQL Connector — base de datos de la aplicación (dev, docker y prod) -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>

@@ -7,9 +7,5 @@ import { Component } from '@angular/core';
   templateUrl: './cta-banner.component.html',
   styleUrl: './cta-banner.component.scss',
 })
-export class CtaBannerComponent {
-  onCreate() {
-    // TODO: Implementar lógica para crear equipo
-  }
-}
+export class CtaBannerComponent {}
 

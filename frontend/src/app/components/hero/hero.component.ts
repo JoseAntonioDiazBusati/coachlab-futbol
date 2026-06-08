@@ -7,13 +7,5 @@ import { Component } from '@angular/core';
   templateUrl: './hero.component.html',
   styleUrl: './hero.component.scss',
 })
-export class HeroComponent {
-  onStartFree() {
-    // TODO: Implementar lógica para iniciar gratis
-  }
-
-  onShowHow() {
-    // TODO: Implementar scroll a sección de características
-  }
-}
+export class HeroComponent {}
 

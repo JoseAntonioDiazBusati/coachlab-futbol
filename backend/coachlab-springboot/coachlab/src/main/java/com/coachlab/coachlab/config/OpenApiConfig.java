@@ -6,6 +6,7 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,8 +14,12 @@ import org.springframework.context.annotation.Configuration;
  * Configuración del contrato OpenAPI (Swagger UI en /swagger-ui.html).
  * Declara el esquema de seguridad JWT Bearer para poder probar endpoints
  * autenticados desde la propia interfaz.
+ *
+ * {@code @ConditionalOnClass} evita que la app falle al arrancar si springdoc
+ * no estuviera en el classpath (p.ej. un classpath de IDE desactualizado).
  */
 @Configuration
+@ConditionalOnClass(OpenAPI.class)
 public class OpenApiConfig {
 
     private static final String JWT_SCHEME = "bearer-jwt";
