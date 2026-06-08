@@ -59,9 +59,24 @@ jobs:
     name: Trigger Render deploy
     runs-on: ubuntu-latest
     needs: [docker-backend, docker-frontend]
+    env:
+      HOOK_BACKEND: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
+      HOOK_FRONTEND: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
     steps:
       - name: Deploy backend
-        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
+        run: |
+          if [ -n "$HOOK_BACKEND" ]; then
+            echo "Disparando deploy del backend en Render..."
+            curl -fsS -X POST "$HOOK_BACKEND"
+          else
+            echo "RENDER_DEPLOY_HOOK_BACKEND no configurado; omitido (despliega manualmente en Render)."
+          fi
 
       - name: Deploy frontend
-        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
+        run: |
+          if [ -n "$HOOK_FRONTEND" ]; then
+            echo "Disparando deploy del frontend en Render..."
+            curl -fsS -X POST "$HOOK_FRONTEND"
+          else
+            echo "RENDER_DEPLOY_HOOK_FRONTEND no configurado; omitido (despliega manualmente en Render)."
+          fi
