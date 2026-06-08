@@ -14,10 +14,10 @@ The original proposal defined several specific features that were either simplif
 
 | Proposed Feature | Final State | Notes |
 |---|---|---|
-| MySQL relational database | Simplified to H2 file mode | H2 was chosen for development speed; MySQL was not set up. This became a liability in the cloud environment (data persistence on free-tier instances). |
-| Real-time match event registration (goals, assists, cards, substitutions via quick-action buttons) | Not implemented | The proposal described an interface designed for use during a live match. The final implementation uses a post-match form for entering results and individual statistics. The real-time system was the most significant feature cut. |
-| Automatic match import from football-data.org (calendar, results, standings) | Partially implemented | Only team and squad data can be imported from the API. Match results still require manual entry. The automatic calendar and result import described in the proposal was not built. |
-| Automatic stat calculation from events (minutes played, substitution tracking) | Not implemented | Without the event system, minutes played and substitution data cannot be auto-calculated. Player statistics are entered manually per match. |
+| MySQL relational database | Implemented | An early prototype used H2, but the final product uses MySQL 8 in every runtime (managed on Aiven in production), with H2 kept only for the test suite. |
+| User roles (coach / scout) | Implemented | Two roles — ENTRENADOR (manages the squad) and OJEADOR (read-only, compares squads) — with role-based authorisation in the API. |
+| Real-time match event registration (quick-action buttons during a live match) | Not implemented | The final implementation uses a post-match form to enter the scoreline and per-player statistics. The live, in-match capture system was the most significant feature cut. |
+| Automatic match import from football-data.org | Partially implemented | Importing a team now also stores its recent matches with the real scoreline. Per-player statistics are not available on the free API tier, and the full calendar/standings import was not built. |
 | Multiple teams per user account | Not implemented | Deprioritised in favour of delivering a reliable single-team experience. Documented as a future improvement. |
 | PDF/CSV export | Not implemented | Listed as optional in the proposal; not addressed in this version. |
 
@@ -27,14 +27,14 @@ Despite the gaps above, the following core objectives were met:
 
 | Objective | Status | Notes |
 |---|---|---|
-| JWT authentication system | Achieved | Register, login, logout, token auto-attachment via interceptor |
-| Team creation (manual and API import) | Achieved | Both methods work end-to-end in production |
-| Squad management | Achieved | Full CRUD for players with position, dorsal, age, photo URL |
-| Match registration with automatic result | Achieved | `@PrePersist` hook calculates WIN/DRAW/LOSS from goal data |
+| JWT authentication with roles | Achieved | Register, login, logout; ENTRENADOR/OJEADOR roles with role-based authorisation |
+| Team creation (manual and API import) | Achieved | Both methods work end-to-end in production; API import also stores recent matches |
+| Squad management | Achieved | Full CRUD for players with validation (position, dorsal 1–99, alphabetic names) |
+| Match registration with automatic result | Achieved | `@PrePersist` hook calculates WIN/DRAW/LOSS; per-player statistics including starts |
 | IRE calculation and display | Achieved | Composite metric displayed on dashboard with verbal description |
-| Match prediction module | Achieved | Probability calculation based on comparative IRE |
-| Cloud deployment (Render) | Achieved | Two services deployed, HTTPS, auto-deploy on push to `main` |
-| REST API, Docker, GitHub Actions CI | Achieved | Full CI pipeline with tests, Docker builds, and deploy triggers |
+| Match prediction + squad comparator | Achieved | IRE-based probabilities and a scout comparator (app and API teams) |
+| MySQL database (Aiven in production) | Achieved | MySQL in all runtimes; H2 only for tests |
+| Cloud deployment (Render), Docker, GitHub Actions CI | Achieved | Static-site frontend + Dockerised backend; CI tests on PR, image build/push on `main` |
 
 The result is a functional application that covers the analytical core of the proposal — team performance tracking, statistical indicators, and pre-match planning — even if the data capture layer is less automated than originally envisioned.
 
@@ -47,16 +47,20 @@ The proposed scope has been delivered in its entirety. Beyond the stated objecti
 - A **player impact ranking** that aggregates per-match statistics into a composite score.
 - A **landing page** with a complete marketing presentation of the product.
 - **Docker Compose** orchestration for a fully reproducible local development environment.
-- **GitHub Actions CI** with separate frontend and backend test jobs that gate deployments.
+- **GitHub Actions CI** with separate frontend and backend test jobs (on pull requests) and an image build/publish workflow (on `main`).
+- A **squad comparator** for the scout role, able to compare app teams and football-data.org teams.
+- A **Swagger/OpenAPI** contract for the REST API.
 
-The only originally planned element that was simplified is the **multi-team per user** feature, which was deprioritised in favour of delivering a higher quality single-team experience. This is documented as a future improvement.
+The main originally planned element that was simplified is the **multi-team per user** feature, which was deprioritised in favour of delivering a higher quality single-team experience. This is documented as a future improvement.
 
 ## 10.3 Proposed Future Improvements
 
 ### Short Term (immediate next steps)
 
-**1. PostgreSQL database migration**
-Replace H2 with PostgreSQL. This is the single most impactful infrastructure change. H2 file mode is functional but fragile in cloud environments with ephemeral filesystems. PostgreSQL would provide true data durability, concurrent access support, and standard backup tooling.
+**1. Versioned database migrations**
+Add Flyway or Liquibase on top of the current MySQL setup and switch `ddl-auto` from
+`update` to `validate` in production. This would give a traceable, reproducible schema
+history instead of relying on Hibernate to evolve the schema automatically.
 
 **2. Password recovery**
 Implement a standard "Forgot password" flow via email using Spring Mail and a token-based reset link. Currently users cannot recover lost passwords.
@@ -69,14 +73,18 @@ Allow the coach to export the season summary, match history, and squad list as P
 
 ### Medium Term
 
-**5. Role-based access control**
-Introduce roles within a team (head coach, assistant coach, analyst) with different permission levels. This would require a more complex data model and UI.
+**5. Finer-grained, per-team permissions**
+The application already has account-level roles (coach / scout). A natural extension is
+per-team membership with finer permission levels (head coach, assistant coach, analyst),
+allowing several people to collaborate on the same squad.
 
 **6. Mobile application**
 Develop an Android/iOS companion app using Angular with Capacitor or a dedicated React Native/Flutter application, allowing coaches to record matches directly from the touchline.
 
-**7. Automated match import from football-data.org**
-For teams imported from the API, offer to automatically import match results from the external API instead of requiring manual entry. This would require mapping the team's identity to the football-data.org team ID.
+**7. Full calendar and standings import from football-data.org**
+Importing a team already brings in its recent matches with the real scoreline. A further
+step would be to import the full season calendar, league standings and per-player match
+statistics (the latter requires a paid API tier).
 
 **8. Video annotation**
 Integrate a lightweight video player with annotation tools, allowing coaches to tag specific moments in match recordings and link them to player statistics.
@@ -94,7 +102,7 @@ Introduce a freemium model: free tier for one team and basic statistics, paid ti
 ### Technical Lessons
 
 **1. Database choice is an infrastructure decision, not a code decision.**
-The choice of H2 file mode was correct for development speed but created real problems in the cloud environment (disk persistence, free-tier instance cycling). In future projects, choosing the production database from day one — even if it means a slightly more complex initial setup — saves significant debugging time later.
+Starting with H2 file mode was convenient for early development but created real problems in the cloud environment (disk persistence, free-tier instance cycling), which is why the project migrated to MySQL (managed on Aiven). The lesson: choose the production database from day one — even if it means a slightly more complex initial setup — to save significant debugging time later.
 
 **2. Circular dependencies indicate design problems.**
 The circular bean dependency between `SecurityConfig` and `JwtAuthenticationFilter` was a symptom of violating the Single Responsibility Principle: `SecurityConfig` was trying to own both the security configuration and the user loading logic. Extracting `UserDetailsServiceImpl` was not just a workaround — it was the correct design.

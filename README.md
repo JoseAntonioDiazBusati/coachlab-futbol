@@ -1,8 +1,21 @@
-# CoachLab Futbol
+# CoachLab Fútbol
 
-A web application for amateur and grassroots football coaches to manage their squad, record match results, and analyse team performance through statistical indicators.
+A web application for amateur and grassroots football coaches: manage your squad,
+record match results and analyse team performance through statistical indicators
+(the **IRE** index), with **coach** and **scout** roles.
 
-**Production:** https://coachlab-futbol-eeiq.onrender.com
+**🌐 Live application:** https://coachlab-futbol-ui5w.onrender.com/
+
+**🔑 Demo accounts** (password `coachlab123` for all of them):
+
+| Email | Role | Data |
+|---|---|---|
+| `entrenador1@coachlab.test` | Coach (entrenador) | Team with 15 players and registered matches |
+| `entrenador2@coachlab.test` | Coach (entrenador) | Team with 18 players and registered matches |
+| `ojeador@coachlab.test` | Scout (ojeador) | Compares squads from the app and the API |
+
+> **Note:** the backend runs on Render's free tier. The first request after a period
+> of inactivity may take ~30 s while the container wakes up.
 
 ---
 
@@ -15,7 +28,7 @@ A web application for amateur and grassroots football coaches to manage their sq
 5. [Getting Started](#getting-started)
 6. [Local Development](#local-development)
 7. [Project Structure](#project-structure)
-8. [API Reference](#api-reference)
+8. [REST API](#rest-api)
 9. [Testing](#testing)
 10. [Deployment](#deployment)
 11. [Documentation](#documentation)
@@ -25,11 +38,19 @@ A web application for amateur and grassroots football coaches to manage their sq
 
 ## Overview
 
-Professional clubs have access to advanced analytics platforms such as Wyscout or InStat, but these are prohibitively expensive and overly complex for a regional or youth coach. Most amateur coaches resort to spreadsheets or paper notes, resulting in fragmented data and no analytical insight.
+Professional clubs have access to advanced analytics platforms (Wyscout, InStat…),
+but these are expensive and overly complex for a regional or youth coach. Most
+amateur coaches resort to spreadsheets or paper notes, resulting in fragmented data
+and no analytical insight.
 
-CoachLab fills this gap by providing a simple, browser-based platform that offers real statistical value without requiring technical expertise. Its core metric is the **IRE (Indice de Rendimiento del Equipo)**, a composite performance index calculated from match results and goal difference, normalised to a 0-10 scale.
+CoachLab fills this gap with a simple, browser-based platform that delivers real
+statistical value without requiring technical expertise. Its core metric is the
+**IRE (Índice de Rendimiento del Equipo)**, a composite performance index computed
+from match results and goal difference, normalised to a 0–10 scale.
 
-The application requires no installation and runs in any modern browser. It is deployed on Render using two containerised services and a fully automated CI/CD pipeline.
+The application is deployed on **Render** (frontend + backend) with a **MySQL**
+database managed on **Aiven**, and is built and shipped through a **CI/CD** pipeline
+based on GitHub Actions and Docker Hub.
 
 ---
 
@@ -37,14 +58,15 @@ The application requires no installation and runs in any modern browser. It is d
 
 | Feature | Description |
 |---|---|
-| Authentication | JWT-based stateless authentication — register, login, and logout |
-| Team setup | Create a team manually or import from the football-data.org API |
-| Squad management | Full CRUD for players: position, dorsal, age, and photo |
-| Match registration | Record results and per-player statistics (goals, assists, cards) |
-| Dashboard | KPI cards, IRE index, recent form streak, and season performance chart |
-| Match prediction | Win/draw/loss probabilities based on comparative IRE between two teams |
-| Liga browser | Browse professional competitions and clubs via football-data.org |
-| Player impact ranking | Composite ranking aggregated from individual match statistics |
+| Authentication & roles | Stateless JWT with two roles: **ENTRENADOR** (manages the squad) and **OJEADOR** (read-only, compares squads). |
+| Team management | Create a team manually or import it from the football-data.org API. |
+| Squad management | Player CRUD with validation (dorsal 1–99, alphabetic names only, positive age). |
+| Match registration | Both teams' scoreline and per-player statistics: goals, assists, minutes, starts and cards. |
+| Analytics dashboard | KPI cards, IRE index, recent-form streak and season performance chart. |
+| Player impact ranking | Player ranking aggregated from their match statistics. |
+| Pre-match / line-up | The coach designs the starting eleven and checks win/draw/loss probabilities. |
+| Comparator (scout) | Compares two squads side by side: app teams and football-data API teams. |
+| FD import | Imports professional teams and their recent matches (real scoreline) as registered matches. |
 
 ---
 
@@ -52,84 +74,102 @@ The application requires no installation and runs in any modern browser. It is d
 
 | Layer | Technology | Version |
 |---|---|---|
-| Frontend | Angular (SPA) | 21 |
+| Frontend | Angular (SPA, standalone components) | 21 |
 | Web server | Nginx | Alpine |
 | Backend | Spring Boot | 3.4.1 |
 | Application server | Tomcat (embedded) | — |
-| Database | MySQL 8 (prod/Docker) · H2 (dev/test) | — |
-| API docs | springdoc-openapi (Swagger UI) | — |
+| Database | MySQL 8 (prod/Docker, Aiven) · H2 (tests only) | — |
+| API documentation | springdoc-openapi (Swagger UI) | 2.7 |
 | Containerisation | Docker + Docker Compose | 24+ |
-| CI/CD | GitHub Actions | — |
-| Cloud hosting | Render.com | — |
+| CI/CD | GitHub Actions + Docker Hub | — |
+| Hosting | Render.com (app) + Aiven (MySQL) | — |
 | External data | football-data.org API | v4 |
 
-**Frontend:** Angular Router, Angular HTTP Client, SCSS design tokens, Outfit and Inter typefaces via Google Fonts.
+**Frontend:** Angular Router, HttpClient with a JWT interceptor, SCSS design tokens,
+CSS animations (`@keyframes`, `IntersectionObserver`), Outfit and Inter typefaces.
 
-**Backend:** Spring Security (JWT, roles ENTRENADOR/OJEADOR), JJWT, Spring Data JPA, MySQL Connector, Spring WebFlux (WebClient), Spring Boot Actuator, springdoc-openapi.
+**Backend:** Spring Security (JWT, ENTRENADOR/OJEADOR roles), JJWT, Spring Data JPA,
+MySQL Connector, Spring WebFlux (WebClient for the BFF proxy), Spring Boot Actuator,
+springdoc-openapi.
 
 ---
 
 ## Architecture
 
-CoachLab follows a three-layer client-server architecture, fully containerised with Docker.
+CoachLab follows a three-layer client-server architecture, containerised with Docker.
+**Locally** the whole stack is started with Docker Compose; **in production** it runs
+on Render (frontend + backend) with Aiven (MySQL).
+
+### Production (Render + Aiven)
 
 ```
-Internet
-    |
-    | HTTPS :443 / HTTP :80
-    v
+                Internet (HTTPS)
+                      |
+        +-------------+-------------+
+        |                           |
+        v                           v
++-------------------+      +----------------------+
+| Frontend          |      | Backend              |
+| Render Static Site|      | Render Web Service   |
+| Angular (SPA)     | ---> | Spring Boot (Docker) |
+| rewrite /* →      | /api | REST + JWT + IRE     |
+| index.html        |      | football-data proxy  |
++-------------------+      +----------+-----------+
+                                      | JDBC (SSL)
+                                      v
+                           +----------------------+
+                           |  MySQL 8 (Aiven)     |
+                           +----------------------+
+```
+
+> The frontend is a Render **Static Site** with a rewrite rule `/* → /index.html`
+> (required for the SPA's client-side routing). The backend is a **Web Service**
+> running the Docker image published to Docker Hub.
+
+### Local (Docker Compose)
+
+```
 +------------------------------------+
-|  Frontend — Angular + Nginx        |
-|  Serves SPA static files           |
-|  Proxies /api/* to backend         |
+|  Frontend — Angular + Nginx :80    |
+|  Serves the SPA and reverse-proxies|
+|  /api/* → backend:8080             |
 +------------------------------------+
-    |
-    | HTTP :8080  (internal Docker bridge network)
-    v
+                |  (internal bridge network)
+                v
 +------------------------------------+
-|  Backend — Spring Boot             |
-|  REST API, JWT auth, IRE formula   |
-|  Proxies requests to football-data |
+|  Backend — Spring Boot :8080       |
 +------------------------------------+
-    |
-    | JDBC
-    v
+                |  JDBC
+                v
 +------------------------------------+
-|  MySQL 8                           |
-|  Docker volume: db-data            |
-|  (perfil dev/test usa H2 en memoria)|
+|  MySQL 8 (Docker volume db-data)   |
 +------------------------------------+
 ```
 
-**Network isolation:** Both containers run on a private bridge network (`internal`). The backend exposes no port to the host — all external traffic enters through Nginx on port 80.
-
-**Environment differences:**
-
-| Environment | API routing | Angular config |
-|---|---|---|
-| Local (`ng serve`) | Angular proxy via `proxy.conf.json` | `environment.ts` |
-| Local Docker Compose | Nginx reverse proxy: `/api/` to `http://backend:8080` | `environment.docker.ts` |
-| Production (Render) | Direct URL: `https://coachlab-futbol.onrender.com/api` | `environment.prod.ts` |
+**Network isolation:** in Docker Compose both containers run on a private bridge
+network (`internal`); the backend exposes no port to the host — all traffic enters
+through Nginx on port 80.
 
 **Entity model:**
 
 ```
 USUARIO 1 --- N EQUIPO 1 --- N JUGADOR
-                   |
-                   1 --- N PARTIDO 1 --- N ESTADISTICA_JUGADOR
-                                             |
-                                       N --- 1 JUGADOR
+                   |                \
+                   1                 N
+                   |                  \
+                   N                   1
+                PARTIDO 1 ----------- N ESTADISTICA_JUGADOR
 ```
 
 **IRE formula:**
 
 ```
-score_results = (wins x 3 + draws x 1) / (total_matches x 3)
-goal_diff     = clamp((avg_goals_for - avg_goals_against) / 3, -1, 1)
-IRE           = clamp((score_results x 0.7 + goal_diff x 0.3 + 0.3) x 10, 0, 10)
+score_results = (wins×3 + draws×1) / (matches×3)
+goal_diff     = clamp((avg_goals_for − avg_goals_against) / 3, −1, 1)
+IRE           = clamp((score_results×0.7 + goal_diff×0.3 + 0.3)×10, 0, 10)
 ```
 
-The result is a value between 0 and 10, rounded to two decimal places. A score above 8 indicates excellent performance; below 2 indicates very poor performance.
+A value between 0 and 10. Above 8 indicates excellent performance; below 2, very poor.
 
 ---
 
@@ -140,54 +180,42 @@ The result is a value between 0 and 10, rounded to two decimal places. A score a
 | Tool | Minimum version | Required for |
 |---|---|---|
 | Git | 2.x | Cloning the repository |
-| Docker | 24.x | Running containers |
-| Docker Compose | 2.x | Orchestrating services |
+| Docker + Docker Compose | 24.x / 2.x | Running the full application |
 | Node.js | 20.x | Frontend development only |
 | Java JDK | 17 | Backend development only |
 | Maven | 3.9 | Backend development only |
 
-A [football-data.org](https://www.football-data.org/) API key is optional. Without it, the API import feature is unavailable but manual team creation remains fully functional.
+A [football-data.org](https://www.football-data.org/) API key is optional: without it
+the API import feature is disabled, but manual team creation works the same.
 
-### Quick Start with Docker Compose
-
-**1. Clone the repository**
+### Quick start with Docker Compose
 
 ```bash
+# 1. Clone
 git clone https://github.com/JoseAntonioDiazBusati/coachlab-futbol.git
 cd coachlab-futbol
-```
 
-**2. Create the environment file**
-
-```bash
+# 2. Environment variables (copy the template and fill it in)
 cp .env.example .env
-```
+#   JWT_SECRET, FD_API_KEY, DB_USER, DB_PASSWORD, MYSQL_ROOT_PASSWORD...
 
-Edit `.env` with your values:
-
-```env
-# JWT signing secret — minimum 256 bits in production
-JWT_SECRET=replace-this-with-a-secure-random-string-at-least-32-characters
-
-# football-data.org API key — free registration at football-data.org
-FD_API_KEY=your_football_data_api_key_here
-```
-
-**3. Build and start**
-
-```bash
+# 3. Build and start (MySQL + backend + frontend)
 docker compose up --build
+
+# 4. Open
+#    Frontend: http://localhost
+#    Backend API reachable through Nginx at http://localhost/api
+
+# 5. Stop
+docker compose down       # keeps the database volume
+docker compose down -v    # also removes the volume
 ```
 
-**4. Open the application**
-
-Navigate to `http://localhost`. Nginx serves the Angular SPA and proxies all `/api/*` requests to the backend container on the internal network.
-
-**5. Stop**
+Quick verification:
 
 ```bash
-docker compose down       # Stop containers, keep database volume
-docker compose down -v    # Stop containers and delete the database volume
+docker compose ps                        # service status
+curl -i http://localhost/api/auth/login  # backend responds through Nginx
 ```
 
 ---
@@ -196,31 +224,34 @@ docker compose down -v    # Stop containers and delete the database volume
 
 ### Backend
 
+The application always uses **MySQL**. Tests use an in-memory H2 database; to run the
+app locally, use the `local` profile pointing at a MySQL instance (from Docker Compose
+or a managed one such as Aiven), configured in an `application-local.properties` file
+(git-ignored):
+
 ```bash
 cd backend/coachlab-springboot/coachlab
 
-# Set environment variables (Linux/macOS)
-export JWT_SECRET=dev-secret-change-me
-export FD_API_KEY=your_api_key
+# Copy the template and fill in DB_URL/user/password + secrets:
+cp src/main/resources/application-local.properties.example \
+   src/main/resources/application-local.properties
 
-# Windows PowerShell
-$env:JWT_SECRET = "dev-secret-change-me"
-$env:FD_API_KEY = "your_api_key"
-
-# Start the application (perfil dev: H2 en memoria + datos demo, sin MySQL)
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Run with the local profile
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-The backend starts at `http://localhost:8080`. In the `dev` profile the H2 web console is available at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:coachlabdev`), and the OpenAPI/Swagger UI at `http://localhost:8080/swagger-ui.html`. Production uses MySQL (see `.env.example` + `docker compose up`).
+- API: `http://localhost:8080/api`
+- **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+- Tests (in-memory H2): `mvn test`
 
 ### Frontend
 
 ```bash
 cd frontend
-
-npm ci       # instalación reproducible (usa package-lock.json)
-npm start    # Development server at http://localhost:4200, proxied to the backend
-npm test     # Run unit tests
+npm ci         # reproducible install
+npm start      # dev server at http://localhost:4200 (proxies /api)
+npm test       # unit tests (Vitest)
+npm run build  # production build
 ```
 
 ---
@@ -229,160 +260,156 @@ npm test     # Run unit tests
 
 ```
 coachlab-futbol/
-|-- backend/
-|   +-- coachlab-springboot/coachlab/
-|       |-- src/main/java/com/coachlab/coachlab/
-|       |   |-- controller/        REST controllers (Auth, Equipo, Jugador, Partido, FD proxy)
-|       |   |-- service/           Business logic — AnalisisService, IRE, prediction
-|       |   |-- model/             JPA entities
-|       |   |-- repository/        Spring Data JPA repositories
-|       |   |-- security/          JWT filter, SecurityConfig, UserDetailsServiceImpl
-|       |   +-- dto/               Data Transfer Objects
-|       |-- src/main/resources/
-|       |   |-- application.properties
-|       |   +-- application-prod.properties
-|       |-- Dockerfile             Multi-stage: Maven build + JRE Alpine runtime
-|       +-- pom.xml
-|
-|-- frontend/
-|   |-- src/
-|   |   |-- app/
-|   |   |   |-- components/        Angular components (auth, dashboard, squad, matches...)
-|   |   |   |-- services/          HTTP services and interceptors
-|   |   |   +-- design/            Global SCSS variables and design tokens
-|   |   +-- environments/
-|   |       |-- environment.ts          Development (Angular dev proxy)
-|   |       |-- environment.docker.ts   Local Docker (Nginx reverse proxy)
-|   |       +-- environment.prod.ts     Production (direct backend URL)
-|   |-- Dockerfile                 Multi-stage: Node build + Nginx Alpine runtime
-|   |-- Dockerfile.local           Docker Compose variant with reverse proxy configuration
-|   |-- nginx.conf                 Production Nginx (SPA fallback + cache + security headers)
-|   +-- nginx.local.conf           Local Nginx (SPA fallback + reverse proxy to backend)
-|
-|-- docs/                          Full project documentation (01 through 10 + despliegue)
-|-- .github/workflows/             GitHub Actions CI/CD pipeline
-|-- docker-compose.yml             Local orchestration (two services, volume, bridge network)
-|-- render.yaml                    Render.com service definitions
-+-- .env.example                   Environment variable template
+├── backend/coachlab-springboot/coachlab/
+│   ├── src/main/java/com/coachlab/coachlab/
+│   │   ├── controller/   REST controllers (Auth, Equipo, Jugador, Partido, FD, Explorar)
+│   │   ├── service/      Business logic (Analysis/IRE, Auth, Explorar...)
+│   │   ├── model/        JPA entities
+│   │   ├── repository/   Spring Data JPA repositories
+│   │   ├── security/     JWT filter, SecurityConfig, roles
+│   │   ├── dto/          Data Transfer Objects + validation
+│   │   └── config/       OpenAPI configuration
+│   ├── src/test/java/...  JUnit + MockMvc tests
+│   ├── Dockerfile        Multi-stage (Maven build + JRE Alpine)
+│   └── pom.xml
+├── frontend/
+│   ├── src/app/
+│   │   ├── components/   Components (auth, dashboard, squad, matches, comparator...)
+│   │   ├── services/     HTTP services, interceptor and guards
+│   │   └── design/       Global SCSS tokens
+│   ├── Dockerfile        Multi-stage (Node build + Nginx Alpine)
+│   ├── nginx.conf        Production Nginx (SPA fallback + cache + headers)
+│   └── nginx.local.conf  Local Nginx (SPA fallback + reverse proxy to backend)
+├── docs/                 Full project documentation (01–10 + deployment)
+├── .github/workflows/    GitHub Actions pipelines (test.yml and docker-image.yml)
+├── docker-compose.yml    Local orchestration (mysql + backend + frontend)
+├── render.yaml           Render service definitions
+└── .env.example          Environment variable template
 ```
 
 ---
 
-## API Reference
+## REST API
 
-All endpoints are prefixed with `/api`. Protected endpoints require the header `Authorization: Bearer <token>`.
+Every endpoint is prefixed with `/api`. Protected endpoints require the
+`Authorization: Bearer <token>` header. The contract is browsable in **Swagger UI**
+(`/swagger-ui.html`), with an *Authorize* button to test with a JWT.
 
 ### Authentication
 
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | Public | Register a new account |
-| POST | `/api/auth/login` | Public | Authenticate and receive a JWT |
+| POST | `/api/auth/register` | Public | Sign up (optional `rol` field: ENTRENADOR/OJEADOR) |
+| POST | `/api/auth/login` | Public | Login; returns `{ token, email, nombre, rol }` |
 
 ### Teams
 
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| GET | `/api/equipos` | Required | List all teams for the authenticated user |
-| POST | `/api/equipos` | Required | Create a new team |
-| GET | `/api/equipos/{id}` | Required | Get team by ID |
-| PUT | `/api/equipos/{id}` | Required | Update team data |
-| DELETE | `/api/equipos/{id}` | Required | Delete team |
-| GET | `/api/equipos/{id}/ire` | Required | Get team IRE score |
-| GET | `/api/equipos/{id}/resumen` | Required | Get full season KPI summary |
-| GET | `/api/equipos/{idLocal}/prediccion/{idVisitante}` | Required | Match prediction probabilities |
+| GET | `/api/equipos` | Authenticated | Teams of the authenticated user |
+| POST | `/api/equipos` | **ENTRENADOR** | Create a team |
+| GET/PUT/DELETE | `/api/equipos/{id}` | Auth. / **ENTRENADOR** | Detail / update / delete |
+| GET | `/api/equipos/{id}/ire` | Authenticated | Team IRE |
+| GET | `/api/equipos/{id}/resumen` | Authenticated | Season KPI summary |
+| GET | `/api/equipos/{idLocal}/prediccion/{idVisitante}` | Authenticated | Match probabilities |
 
 ### Players
 
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| GET | `/api/equipos/{id}/jugadores` | Required | List players in the squad |
-| POST | `/api/equipos/{id}/jugadores` | Required | Add a player |
-| GET | `/api/equipos/{id}/jugadores/{jId}` | Required | Get player by ID |
-| PUT | `/api/equipos/{id}/jugadores/{jId}` | Required | Update player data |
-| DELETE | `/api/equipos/{id}/jugadores/{jId}` | Required | Remove a player |
-| GET | `/api/equipos/{id}/jugadores/ranking` | Required | Player impact ranking |
+| GET | `/api/equipos/{id}/jugadores` | Authenticated | Squad |
+| GET | `/api/equipos/{id}/jugadores/ranking` | Authenticated | Impact ranking |
+| POST/PUT/DELETE | `/api/equipos/{id}/jugadores/{jId}` | **ENTRENADOR** | Create / update / delete |
 
 ### Matches
 
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| GET | `/api/equipos/{id}/partidos` | Required | List all matches |
-| POST | `/api/equipos/{id}/partidos` | Required | Register a match |
-| GET | `/api/equipos/{id}/partidos/{pId}` | Required | Get match by ID |
-| PUT | `/api/equipos/{id}/partidos/{pId}` | Required | Update match data |
-| DELETE | `/api/equipos/{id}/partidos/{pId}` | Required | Delete a match |
+| GET | `/api/equipos/{id}/partidos` | Authenticated | List |
+| POST | `/api/equipos/{id}/partidos/full` | **ENTRENADOR** | Create match + statistics |
+| GET | `/api/equipos/{id}/partidos/{pId}` | Authenticated | Detail with statistics |
+| GET | `/api/equipos/{id}/partidos/{pId}/estadisticas` | Authenticated | Match statistics |
+| PUT/DELETE | `/api/equipos/{id}/partidos/{pId}` | **ENTRENADOR** | Update / delete |
+| GET | `/api/equipos/{id}/partidos/preview-fd` | Authenticated | Editable preview of an FD match |
 
-### football-data.org Proxy
+### Comparator / exploration (OJEADOR role or any authenticated user, read-only)
 
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| GET | `/api/fd/competiciones` | Required | List available competitions |
-| GET | `/api/fd/competiciones/{code}/equipos` | Required | List teams in a competition |
-| GET | `/api/fd/equipos/{id}/plantilla` | Required | Get professional team squad |
-| GET | `/api/fd/equipos/{id}/partidos` | Required | Get recent matches of a professional team |
+| GET | `/api/explorar/equipos` | Authenticated | All app teams (to compare) |
+| GET | `/api/explorar/equipos/{id}/jugadores` | Authenticated | Squad/ranking of any team |
 
-**Error response format:**
+### football-data.org proxy (BFF — the API key never leaves the server)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/fd/competiciones` | Available competitions |
+| GET | `/api/fd/competiciones/{code}/equipos` | Teams in a competition |
+| GET | `/api/fd/teams/{id}` | Professional team squad |
+| GET | `/api/fd/teams/{id}/matches` | Recent matches of the team |
+| GET | `/api/fd/competiciones/{code}/scorers` | Top scorers |
+
+**HTTP codes and error format**
 
 ```json
-{
-  "timestamp": "2026-05-22T10:30:00",
-  "error": "Bad Request",
-  "mensaje": "El email ya está registrado."
-}
+{ "timestamp": "2026-06-08T10:30:00", "error": "Unauthorized", "mensaje": "Email o contraseña incorrectos" }
 ```
 
-| HTTP Status | Scenario |
+| Code | Scenario |
 |---|---|
-| 400 | Invalid request data or validation failure |
-| 401 | Missing or invalid JWT token |
-| 403 | Insufficient permissions |
-| 404 | Resource not found |
+| 200 / 201 / 204 | Successful operation |
+| 400 | Invalid data / validation failure |
+| 401 | Missing/expired JWT or wrong credentials |
+| 403 | Insufficient permissions (e.g. a scout trying to write) |
+| 404 | Resource not found or not owned by the user |
 | 409 | Conflict (e.g. duplicate email on registration) |
-| 500 | Internal server error |
+
+**Example (curl):**
+
+The frontend (Static Site) is served at `coachlab-futbol-ui5w.onrender.com`; the REST API
+is the separate backend service (`coachlab-futbol.onrender.com/api`):
+
+```bash
+# Login → get token
+curl -s -X POST https://coachlab-futbol.onrender.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"entrenador1@coachlab.test","password":"coachlab123"}'
+
+# Use the token
+curl -s https://coachlab-futbol.onrender.com/api/equipos \
+  -H "Authorization: Bearer <TOKEN>"
+```
 
 ---
 
 ## Testing
 
-### Backend
+### Backend (33 tests)
 
-Tests use JUnit 5, Spring Boot Test (`@SpringBootTest`), MockMvc for controller testing, and H2 in-memory mode as the test database — automatically configured by Spring Boot Test.
+JUnit 5, Spring Boot Test (`@SpringBootTest`), **MockMvc** for controller tests and
+**in-memory H2** as the test database. They cover, among others:
 
-```bash
-cd backend/coachlab-springboot/coachlab
-mvn test
-```
-
-### Frontend
-
-Tests use Vitest with Angular TestBed (`ng test --no-watch`). Test files follow the Angular convention of `*.spec.ts` co-located with each component or service.
+- Login/registration and HTTP codes (200/401/409) — `AuthControllerTest`.
+- Owner isolation: accessing another user's resources → 404 — `JugadorServiceTest`, `PartidoServiceTest`.
+- Roles: the scout cannot write (403) and can compare (200) — `RolesSecurityTest`.
+- Match-with-statistics flow, IRE and FD mapping.
 
 ```bash
-cd frontend
-npm test
+cd backend/coachlab-springboot/coachlab && mvn test
 ```
 
-### CI Test Execution
+### Frontend (224 tests)
 
-Both test suites (`test.yml`) run automatically on every pull request targeting `main`. The Docker build & push workflow (`docker-image.yml`) runs on push to `main`, building and publishing the backend and frontend images and then triggering the Render deploy hooks.
+**Vitest** + Angular TestBed (`*.spec.ts` co-located with each component/service).
 
-### Manual Integration Tests
+```bash
+cd frontend && npm test
+```
 
-End-to-end scenarios were validated against both the local Docker Compose environment and the production deployment.
+### CI
 
-| ID | Scenario | Expected result |
-|---|---|---|
-| T-01 | Register a new account | JWT returned, redirect to Ligas (or Dashboard if the user already has a team) |
-| T-02 | Login with valid credentials | JWT stored, redirect to Dashboard |
-| T-03 | Login with invalid credentials | 401 error message shown |
-| T-04 | Create team manually | Team saved, redirect to squad setup |
-| T-05 | Import team from football-data.org | Competitions loaded, team data imported |
-| T-06 | Add a player to the squad | Player appears in the squad list |
-| T-07 | Register a match (win result) | Result displayed as VICTORIA |
-| T-08 | View dashboard after several matches | KPI cards correct, IRE calculated |
-| T-09 | Request a match prediction | Win/draw/loss percentages displayed |
-| T-10 | Access a protected route without JWT | Redirected to login |
+- **`test.yml`** runs both suites on every *pull request* to `main`.
+- **`docker-image.yml`** builds and publishes the Docker images on every *push* to `main`.
 
 ---
 
@@ -390,110 +417,74 @@ End-to-end scenarios were validated against both the local Docker Compose enviro
 
 ### Infrastructure
 
-The application runs on **Render** as two independent Docker-based web services.
-
-| Service | URL | Docker context |
+| Service | Type | URL / target |
 |---|---|---|
-| Backend | `https://coachlab-futbol.onrender.com` | `backend/coachlab-springboot/coachlab` |
-| Frontend | `https://coachlab-futbol-eeiq.onrender.com` | `frontend` |
+| Frontend | Render **Static Site** (rewrite `/* → /index.html`) | https://coachlab-futbol-ui5w.onrender.com/ |
+| Backend | Render **Web Service** (Docker image) | image `joseantoniodiazbusati/coachlab-backend:latest` |
+| Database | **Aiven** MySQL 8 (managed, SSL) | `DB_URL` with `sslMode=REQUIRED` |
+| Image registry | Docker Hub | `joseantoniodiazbusati/coachlab-{backend,frontend}` |
 
-Both services use Render's free tier. Cold starts after a period of inactivity may take up to 30 seconds for the first response.
-
-### CI/CD Pipeline
-
-The pipeline is defined in `.github/workflows/docker-image.yml` and consists of four sequential stages:
+### CI/CD (GitHub Actions)
 
 ```
-Push to main
-    |
-    +-- test-frontend   (npm test)
-    +-- test-backend    (mvn test)
-         |
-         | Both pass
-         v
-    +-- docker-backend   (build and push to Docker Hub)
-    +-- docker-frontend  (build and push to Docker Hub)
-         |
-         v
-    deploy (trigger Render deploy webhooks)
+Pull request → main      Push → main
+      |                       |
+   test.yml              docker-image.yml
+   ├─ test-frontend      ├─ docker-backend  (build + push :latest)
+   └─ test-backend       ├─ docker-frontend (build + push :latest)
+                         └─ deploy          (Render webhooks, optional)
 ```
 
-**Required GitHub Secrets:**
+**GitHub secrets:** `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (and optionally
+`RENDER_DEPLOY_HOOK_BACKEND` / `RENDER_DEPLOY_HOOK_FRONTEND`).
 
-| Secret | Purpose |
+### Backend environment variables (Render)
+
+| Variable | Description |
 |---|---|
-| `DOCKERHUB_USERNAME` | Docker Hub account username |
-| `DOCKERHUB_TOKEN` | Docker Hub access token |
-| `RENDER_DEPLOY_HOOK_BACKEND` | Render webhook URL for the backend service |
-| `RENDER_DEPLOY_HOOK_FRONTEND` | Render webhook URL for the frontend service |
-
-### Docker Images
-
-| Image | Registry | Approx. size |
-|---|---|---|
-| `joseantoniodiazbusati/coachlab-backend:latest` | Docker Hub | ~180 MB |
-| `joseantoniodiazbusati/coachlab-frontend:latest` | Docker Hub | ~52 MB |
-
-Both images use multi-stage builds. The backend discards the Maven toolchain in the final image, keeping only the JRE and the compiled JAR. The frontend discards the Node.js build layer, keeping only the Angular build output served by Nginx.
-
-### Backend Environment Variables (Render)
-
-| Variable | Value |
-|---|---|
-| `SPRING_PROFILES_ACTIVE` | `prod` |
-| `JWT_SECRET` | Secure random string, minimum 256 bits |
+| `SPRING_PROFILES_ACTIVE` | `prod` (the image already defaults to it) |
+| `DB_URL` | Full Aiven JDBC string (`jdbc:mysql://...:port/defaultdb?sslMode=REQUIRED&serverTimezone=UTC`) |
+| `DB_USER` / `DB_PASSWORD` | Aiven credentials |
+| `JWT_SECRET` | Random string ≥ 32 characters |
 | `FD_API_KEY` | football-data.org API key |
-| `DB_HOST` / `DB_PORT` | MySQL host and port |
-| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | MySQL database and credentials |
-| `COACHLAB_CORS_ALLOWED_ORIGINS` | `https://coachlab-futbol-eeiq.onrender.com` |
+| `COACHLAB_CORS_ALLOWED_ORIGINS` | Public frontend URL |
+| `COACHLAB_SEED_DEMO` | `true` to seed the three demo users |
 
-For the complete deployment documentation including network topology, health checks, Nginx configuration, and the full evidence for each assessment criterion (Criterio 1 through Criterio 8), see [docs/despliegue.md](docs/despliegue.md).
+The full deployment module (architecture, Docker, reverse proxy, CI/CD and evidence)
+is documented in [docs/08-despliegue.md](docs/08-despliegue.md) and
+[docs/despliegue.md](docs/despliegue.md).
 
 ---
 
 ## Documentation
 
-All project documentation is in the `docs/` directory.
+All project documentation lives in `docs/`:
 
 | File | Contents |
 |---|---|
-| [01-introduccion.md](docs/01-introduccion.md) | Origin, objectives, and comparison with similar tools |
-| [02-descripcion.md](docs/02-descripcion.md) | Feature descriptions, IRE formula, and use cases |
-| [03-instalacion.md](docs/03-instalacion.md) | Prerequisites, environment setup, and installation steps |
-| [04-guia-estilos.md](docs/04-guia-estilos.md) | Colour palette, typography, spacing system, and SCSS tokens |
-| [05-diseno.md](docs/05-diseno.md) | Architecture diagrams, ER model, API design, and process flows |
-| [06-desarrollo.md](docs/06-desarrollo.md) | Development phases, technical decisions, and justifications |
-| [07-pruebas.md](docs/07-pruebas.md) | Testing methodology, test cases, CI execution, and coverage |
-| [08-despliegue.md](docs/08-despliegue.md) | Render configuration and CI/CD pipeline detail |
-| [09-manual-usuario.md](docs/09-manual-usuario.md) | Step-by-step user guide |
-| [10-conclusiones.md](docs/10-conclusiones.md) | Critical evaluation, scope fulfilment, and lessons learned |
-| [despliegue.md](docs/despliegue.md) | Deployment module — Criterio 1 through 8 with full evidence |
+| [01-introduccion.md](docs/01-introduccion.md) | Origin, objectives and comparison with similar tools |
+| [02-descripcion.md](docs/02-descripcion.md) | Feature descriptions, UI/UX and use cases |
+| [03-instalacion.md](docs/03-instalacion.md) | Prerequisites, environment variables and installation |
+| [04-guia-estilos.md](docs/04-guia-estilos.md) | Palette, typography, spacing and components |
+| [05-diseno.md](docs/05-diseno.md) | ER diagram, use cases, flows, architecture and API design |
+| [06-desarrollo.md](docs/06-desarrollo.md) | Development sequence, technical decisions and difficulties |
+| [07-pruebas.md](docs/07-pruebas.md) | Methodology, test types, coverage and results |
+| [08-despliegue.md](docs/08-despliegue.md) | Deployment, CI/CD and configuration |
+| [09-manual-usuario.md](docs/09-manual-usuario.md) | Step-by-step user manual |
+| [10-conclusiones.md](docs/10-conclusiones.md) | Critical evaluation, scope fulfilment and lessons learned |
 
 ---
 
 ## Future Improvements
 
-**Short term**
-
-- Add versioned database migrations (Flyway/Liquibase) on top of the current MySQL setup, switching `ddl-auto` to `validate` in production.
-- Implement a password recovery flow using Spring Mail and a token-based reset link.
-- Allow a coach to manage multiple teams from a single account.
-- Add PDF and CSV export for season summaries, match history, and squad lists.
-
-**Medium term**
-
-- Role-based access control within a team (head coach, assistant, analyst).
-- Mobile application using Angular with Capacitor or a dedicated native framework.
-- Automatic match result import from football-data.org for teams imported via the API.
-
-**Long term**
-
-- Video annotation linked to player match statistics.
-- AI-assisted tactical recommendations based on aggregated season data.
-- Freemium SaaS model with tiered feature access.
+- Versioned database migrations (Flyway/Liquibase) and `ddl-auto=validate` in production.
+- Password recovery by email.
+- Multiple teams per coach.
+- PDF/CSV export of summaries and squads.
+- Per-player statistics on API imports (requires a paid plan).
 
 ---
 
 ## License
 
-This project was developed as an academic project for the Desarrollo de Aplicaciones Web (DAW) programme. It is not licensed for commercial use.
+Academic project for the Desarrollo de Aplicaciones Web (DAW) programme. Not licensed for commercial use.

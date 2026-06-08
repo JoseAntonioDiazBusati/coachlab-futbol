@@ -50,13 +50,24 @@ The project was developed following an iterative, feature-by-feature approach. E
 
 ## 6.2 Key Technical Decisions and Justifications
 
-### 6.2.1 H2 File Database instead of PostgreSQL
+### 6.2.1 MySQL as the database (H2 only for tests)
 
-**Decision**: Use H2 in file-persistence mode rather than PostgreSQL.
+**Decision**: Use **MySQL 8** as the application database in every runtime environment
+(local Docker Compose and production), keeping **H2 in-memory** exclusively for the test suite.
 
-**Justification**: The project targets a single-coach single-team use case, where data volumes are very small (tens of matches, dozens of players). H2 file mode provides full SQL capabilities with zero infrastructure cost — no additional database service is needed. This is appropriate for the project's scope and eliminates the need to manage a separate database container or cloud database instance.
+**Justification**: an early prototype used H2 in file mode for simplicity, but the project
+requires a real, server-based SQL database with proper relational integrity. MySQL provides
+that and is the same engine across local and production, which avoids "works-on-my-machine"
+dialect differences. In production the MySQL instance is **managed on Aiven** (external to
+Render, reachable over SSL), so the data is independent of the application container.
 
-**Trade-off**: H2 is not suitable for multi-user, high-concurrency production use. A migration to PostgreSQL would be required to scale beyond a single concurrent user.
+**Implementation**: profiles select the datasource — the default/`prod` profile and the
+`local` profile use MySQL; the `test` profile uses H2 in memory. The connection string is
+configurable via `DB_URL` (or `DB_HOST`/`DB_PORT`/`DB_NAME`), which makes pointing at a
+managed provider that requires SSL straightforward.
+
+**Trade-off**: schema evolution currently relies on Hibernate `ddl-auto=update`; a future
+improvement is to add versioned migrations (Flyway/Liquibase) and switch to `validate`.
 
 ### 6.2.2 JWT Stateless Authentication
 
