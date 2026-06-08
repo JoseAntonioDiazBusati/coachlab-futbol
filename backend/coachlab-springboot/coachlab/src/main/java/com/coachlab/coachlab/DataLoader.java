@@ -9,14 +9,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Carga datos de ejemplo al arrancar la aplicación.
+ * Carga 3 usuarios de prueba con sus datos al arrancar, SOLO si
+ * {@code coachlab.seed-demo=true} (perfil dev, o variable COACHLAB_SEED_DEMO en
+ * despliegue). Nunca se ejecuta en test ni en producción por defecto.
  *
- * <p><strong>Seguridad operacional:</strong> solo se activa cuando
- * {@code coachlab.seed-demo=true} (perfil dev). En test y producción NO se
- * ejecuta, por lo que no se crea el usuario demo ni se imprimen credenciales
- * en los logs de un despliegue real.</p>
+ * <ul>
+ *   <li><b>entrenador1@coachlab.test</b> — rol ENTRENADOR — equipo con 15 jugadores.</li>
+ *   <li><b>entrenador2@coachlab.test</b> — rol ENTRENADOR — equipo con 18 jugadores.</li>
+ *   <li><b>ojeador@coachlab.test</b> — rol OJEADOR — trabaja con el equipo del
+ *       entrenador 1 y puede comparar las alineaciones de ambos entrenadores.</li>
+ * </ul>
+ * Contraseña común: <b>coachlab123</b>.
  */
 @Component
 @ConditionalOnProperty(name = "coachlab.seed-demo", havingValue = "true")
@@ -30,120 +37,103 @@ public class DataLoader implements CommandLineRunner {
     private final UsuarioRepository   usuarioRepo;
     private final PasswordEncoder     passwordEncoder;
 
+    private static final String PASS = "coachlab123";
+
+    private static final String[] NOMBRES = {
+        "Carlos","Miguel","David","Alejandro","Javier","Sergio","Pablo","Adrián",
+        "Daniel","Hugo","Marcos","Iván","Rubén","Mario","Álvaro","Diego","Raúl","Jorge"
+    };
+    private static final String[] APELLIDOS = {
+        "García","Fernández","López","Martínez","Sánchez","Pérez","Gómez","Ruiz",
+        "Díaz","Moreno","Muñoz","Álvarez","Romero","Navarro","Torres","Domínguez","Vázquez","Ramos"
+    };
+    // Posiciones por dorsal (11 titulares + suplentes). Cubre hasta 18 jugadores.
+    private static final String[] POSICIONES = {
+        "Portero","Defensa","Defensa","Defensa","Defensa",
+        "Centrocampista","Centrocampista","Centrocampista","Centrocampista",
+        "Delantero","Delantero",
+        "Portero","Defensa","Centrocampista","Delantero",
+        "Defensa","Centrocampista","Delantero"
+    };
+
     @Override
     public void run(String... args) {
-
-        // ── Usuario demo ──────────────────────────────────────
-        if (!usuarioRepo.existsByEmail("demo@coachlab.test")) {
-            usuarioRepo.save(Usuario.builder()
-                    .nombre("Usuario Demo")
-                    .email("demo@coachlab.test")
-                    .password(passwordEncoder.encode("coachlab123"))
-                    .build());
-            System.out.println("👤 Usuario demo creado: demo@coachlab.test / coachlab123");
-        }
-        Usuario demo = usuarioRepo.findByEmail("demo@coachlab.test").orElseThrow();
-
-        // ── Backfill de migración: equipos previos a la columna `usuario_id` ──
-        var equiposSinDueno = equipoRepo.findByUsuarioIsNull();
-        if (!equiposSinDueno.isEmpty()) {
-            equiposSinDueno.forEach(e -> e.setUsuario(demo));
-            equipoRepo.saveAll(equiposSinDueno);
-            System.out.println("🔧 Backfill: " + equiposSinDueno.size() + " equipo(s) asignados al usuario demo.");
-        }
-
-        // ── Backfill de migración: partidos previos a la columna `origen` ──
-        // Las filas anteriores quedan con origen = NULL al añadir la columna;
-        // se marcan como MANUAL (origen por defecto de un partido registrado a mano).
-        var sinOrigen = partidoRepo.findByOrigenIsNull();
-        if (!sinOrigen.isEmpty()) {
-            sinOrigen.forEach(p -> p.setOrigen(OrigenPartido.MANUAL));
-            partidoRepo.saveAll(sinOrigen);
-            System.out.println("🔧 Backfill: " + sinOrigen.size() + " partido(s) marcados como MANUAL.");
-        }
-
-        // ── Datos de ejemplo (sólo si la DB está vacía) ───────
-        if (equipoRepo.count() > 0) {
-            System.out.println("\n✅ CoachLab Fútbol arrancado correctamente.");
-            System.out.println("🌐 API disponible en: http://localhost:8080/api");
-            System.out.println("🗄️  Consola H2 en:    http://localhost:8080/h2-console\n");
+        if (usuarioRepo.existsByEmail("entrenador1@coachlab.test")) {
+            System.out.println("✅ Usuarios de prueba ya presentes. Seed omitido.");
             return;
         }
 
-        // ── Equipo ────────────────────────────────────────────
-        Equipo equipo = equipoRepo.save(Equipo.builder()
-                .nombre("CD Atlético Coachlab")
-                .categoria("Amateur Senior")
-                .temporada("2024/2025")
-                .ciudad("Madrid")
-                .usuario(demo)
+        Usuario entrenador1 = crearUsuario("Antonio Entrenador", "entrenador1@coachlab.test", Rol.ENTRENADOR);
+        Usuario entrenador2 = crearUsuario("Lucía Entrenadora",  "entrenador2@coachlab.test", Rol.ENTRENADOR);
+        crearUsuario("Óscar Ojeador", "ojeador@coachlab.test", Rol.OJEADOR);
+
+        crearEquipoConDatos(entrenador1, "CD Atlético Coachlab", "Amateur Senior", "Madrid", 15);
+        crearEquipoConDatos(entrenador2, "Racing de los Pinos",  "Regional",       "Sevilla", 18);
+
+        System.out.println("""
+
+            ✅ CoachLab Fútbol — datos de prueba cargados.
+            👤 entrenador1@coachlab.test / coachlab123  (ENTRENADOR · 15 jugadores)
+            👤 entrenador2@coachlab.test / coachlab123  (ENTRENADOR · 18 jugadores)
+            👁  ojeador@coachlab.test      / coachlab123  (OJEADOR · compara plantillas)
+            🌐 API: http://localhost:8080/api  ·  Swagger: http://localhost:8080/swagger-ui.html
+            """);
+    }
+
+    private Usuario crearUsuario(String nombre, String email, Rol rol) {
+        return usuarioRepo.save(Usuario.builder()
+                .nombre(nombre)
+                .email(email)
+                .password(passwordEncoder.encode(PASS))
+                .rol(rol)
                 .build());
+    }
 
-        // ── Jugadores ─────────────────────────────────────────
-        Jugador portero = jugadorRepo.save(Jugador.builder()
-                .nombre("Carlos").apellidos("García").dorsal(1)
-                .posicion("Portero").edad(25).equipo(equipo).build());
+    /** Crea un equipo con {@code numJugadores} y un partido con estadísticas por jugador. */
+    private void crearEquipoConDatos(Usuario dueno, String nombre, String categoria, String ciudad, int numJugadores) {
+        Equipo equipo = equipoRepo.save(Equipo.builder()
+                .nombre(nombre).categoria(categoria).temporada("2024/2025")
+                .ciudad(ciudad).usuario(dueno).build());
 
-        Jugador defensa = jugadorRepo.save(Jugador.builder()
-                .nombre("Miguel").apellidos("Fernández").dorsal(4)
-                .posicion("Defensa").edad(28).equipo(equipo).build());
+        List<Jugador> jugadores = new ArrayList<>();
+        for (int i = 0; i < numJugadores; i++) {
+            jugadores.add(jugadorRepo.save(Jugador.builder()
+                    .nombre(NOMBRES[i % NOMBRES.length])
+                    .apellidos(APELLIDOS[i % APELLIDOS.length])
+                    .dorsal(i + 1)
+                    .posicion(POSICIONES[i % POSICIONES.length])
+                    .edad(18 + (i % 15))
+                    .equipo(equipo)
+                    .build()));
+        }
 
-        Jugador centrocampista = jugadorRepo.save(Jugador.builder()
-                .nombre("David").apellidos("López").dorsal(8)
-                .posicion("Centrocampista").edad(23).equipo(equipo).build());
+        // Un partido reciente con estadísticas (para que el ranking/comparación tenga datos).
+        Partido partido = partidoRepo.save(Partido.builder()
+                .fecha(LocalDate.now().minusWeeks(1))
+                .rival("Rival CF").esLocal(true)
+                .golesAFavor(3).golesEnContra(1)
+                .competicion("Liga").origen(OrigenPartido.MANUAL)
+                .equipo(equipo).build());
 
-        Jugador delantero = jugadorRepo.save(Jugador.builder()
-                .nombre("Alejandro").apellidos("Martínez").dorsal(9)
-                .posicion("Delantero").edad(22).equipo(equipo).build());
+        for (int i = 0; i < jugadores.size(); i++) {
+            Jugador j = jugadores.get(i);
+            boolean titular = i < 11;
+            int minutos = titular ? 90 : (i < 14 ? 25 : 0);
+            if (minutos == 0) continue;   // no participó
 
-        // ── Partidos ──────────────────────────────────────────
-        Partido p1 = partidoRepo.save(Partido.builder()
-                .fecha(LocalDate.now().minusWeeks(4)).rival("UD Rivales FC")
-                .esLocal(true).golesAFavor(3).golesEnContra(1).equipo(equipo).build());
+            String pos = j.getPosicion();
+            int goles = "Delantero".equals(pos) ? 1 + (i % 2)
+                      : ("Centrocampista".equals(pos) && i % 2 == 0 ? 1 : 0);
+            int asistencias = (i % 3 == 0) ? 1 : 0;
+            int amarillas   = (i % 6 == 0) ? 1 : 0;
 
-        Partido p2 = partidoRepo.save(Partido.builder()
-                .fecha(LocalDate.now().minusWeeks(3)).rival("CF Contrarios")
-                .esLocal(false).golesAFavor(1).golesEnContra(1).equipo(equipo).build());
-
-        Partido p3 = partidoRepo.save(Partido.builder()
-                .fecha(LocalDate.now().minusWeeks(2)).rival("AD Oponentes")
-                .esLocal(true).golesAFavor(2).golesEnContra(0).equipo(equipo).build());
-
-        Partido p4 = partidoRepo.save(Partido.builder()
-                .fecha(LocalDate.now().minusWeeks(1)).rival("SC Adversarios")
-                .esLocal(false).golesAFavor(0).golesEnContra(2).equipo(equipo).build());
-
-        // ── Estadísticas individuales ─────────────────────────
-
-        // Partido 1: victoria 3-1
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(delantero).partido(p1)
-                .goles(2).asistencias(0).minutosJugados(90).tarjetasAmarillas(0).build());
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(centrocampista).partido(p1)
-                .goles(1).asistencias(2).minutosJugados(90).build());
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(defensa).partido(p1)
-                .goles(0).asistencias(1).minutosJugados(90).build());
-
-        // Partido 2: empate 1-1
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(delantero).partido(p2)
-                .goles(1).asistencias(0).minutosJugados(75).build());
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(centrocampista).partido(p2)
-                .goles(0).asistencias(1).minutosJugados(90).tarjetasAmarillas(1).build());
-
-        // Partido 3: victoria 2-0
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(delantero).partido(p3)
-                .goles(1).asistencias(0).minutosJugados(90).build());
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(centrocampista).partido(p3)
-                .goles(1).asistencias(1).minutosJugados(90).build());
-
-        // Partido 4: derrota 0-2
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(delantero).partido(p4)
-                .goles(0).asistencias(0).minutosJugados(90).tarjetasAmarillas(1).build());
-        estadisticaRepo.save(EstadisticaJugador.builder().jugador(defensa).partido(p4)
-                .goles(0).asistencias(0).minutosJugados(90).tarjetasRojas(1).build());
-
-        System.out.println("\n✅ CoachLab Fútbol arrancado correctamente.");
-        System.out.println("📊 Datos de ejemplo cargados.");
-        System.out.println("🌐 API disponible en: http://localhost:8080/api");
-        System.out.println("🗄️  Consola H2 en:    http://localhost:8080/h2-console\n");
+            estadisticaRepo.save(EstadisticaJugador.builder()
+                    .jugador(j).partido(partido)
+                    .goles(goles).asistencias(asistencias)
+                    .minutosJugados(minutos)
+                    .tarjetasAmarillas(amarillas).tarjetasRojas(0)
+                    .esTitular(titular)
+                    .build());
+        }
     }
 }
