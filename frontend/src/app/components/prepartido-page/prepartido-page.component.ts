@@ -74,10 +74,8 @@ export class PrepartidoPageComponent implements OnInit {
   private readonly equipoActivo   = inject(EquipoActivoService);
   private readonly authService    = inject(AuthService);
 
-  /** Un ojeador solo compara: no tiene plantilla propia para alinear. */
+  /** Un ojeador solo compara (ve el comparador); el entrenador solo alinea. */
   readonly esOjeador = this.authService.esOjeador();
-  /** Panel de comparación de plantillas (abierto por defecto para ojeadores). */
-  mostrarComparador = this.esOjeador;
 
   equipo: Equipo | null = null;
   jugadores: PlantillaJugador[] = [];
@@ -120,10 +118,6 @@ export class PrepartidoPageComponent implements OnInit {
   ngOnInit(): void {
     // El ojeador no tiene equipo propio: solo usa el comparador.
     if (!this.esOjeador) this.cargarEquipo();
-  }
-
-  toggleComparador(): void {
-    this.mostrarComparador = !this.mostrarComparador;
   }
 
   cargarEquipo(): void {

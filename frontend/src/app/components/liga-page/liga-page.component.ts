@@ -7,6 +7,7 @@ import { DashboardHeaderComponent } from '../dashboard/dashboard-header/dashboar
 import { EquipoService, Equipo } from '../../services/equipo.service';
 import { EquipoActivoService } from '../../services/equipo-activo.service';
 import { JugadorService, CrearJugadorPayload } from '../../services/jugador.service';
+import { PartidoRegistradoService, calcularResultado } from '../../services/partido-registrado.service';
 import {
   FootballDataService,
   FdCompeticion,
@@ -45,6 +46,7 @@ export class LigaPageComponent implements OnInit, OnDestroy {
   private readonly equipoActivo   = inject(EquipoActivoService);
   private readonly fdService      = inject(FootballDataService);
   private readonly jugadorService = inject(JugadorService);
+  private readonly partidoService = inject(PartidoRegistradoService);
   private readonly router         = inject(Router);
 
   /**
@@ -308,10 +310,11 @@ export class LigaPageComponent implements OnInit, OnDestroy {
             this.jugadorService.importarPlantilla(equipo.id, payloads);
           }
 
-          // Nota: los partidos descargados se usan solo para agregar las
-          // estadísticas de la plantilla (tarjetas/minutos). No se persisten
-          // localmente; el historial de partidos vive en el backend vía
-          // PartidoRegistradoService (importador de la pantalla Registrar Partido).
+          // ── Persistir los partidos reales de la API como partidos registrados ──
+          // El marcador (resultado de ambos equipos) sí está disponible en el plan
+          // gratuito; las estadísticas por jugador no, así que van vacías. El backend
+          // es idempotente por externalId (no duplica al reimportar).
+          this.persistirPartidosFd(equipo.id, fd.id, partidos);
 
           // ── Activate & finish ────────────────────────────────────────
           this.equipoActivo.setEquipo(equipo.id);
@@ -367,6 +370,41 @@ export class LigaPageComponent implements OnInit, OnDestroy {
 
   irAPlantilla(): void {
     this.router.navigate(['/plantilla']);
+  }
+
+  /**
+   * Guarda los partidos finalizados traídos de la API como partidos registrados,
+   * usando el marcador real (resultado de ambos equipos). Las estadísticas por
+   * jugador van vacías (no disponibles en el plan gratuito). Fire-and-forget: un
+   * fallo aquí no debe romper la importación del equipo.
+   */
+  private persistirPartidosFd(equipoId: number, fdTeamId: number, partidos: FdMatch[]): void {
+    for (const m of partidos) {
+      const home = m.score?.fullTime?.home;
+      const away = m.score?.fullTime?.away;
+      if (home == null || away == null) continue;   // sin marcador → no se registra
+
+      const esLocal = m.homeTeam.id === fdTeamId;
+      const golesNuestros = esLocal ? home : away;
+      const golesRivales  = esLocal ? away : home;
+      const rival = esLocal ? m.awayTeam.name : m.homeTeam.name;
+
+      this.partidoService
+        .guardar(equipoId, {
+          rival,
+          fecha: m.utcDate.slice(0, 10),
+          esLocal,
+          competicion: m.competition?.name ?? 'Liga',
+          golesNuestros,
+          golesRivales,
+          resultado: calcularResultado(golesNuestros, golesRivales),
+          jugadoresIds: [],
+          estadisticas: [],
+          origen: 'FOOTBALL_DATA',
+          externalId: m.id,
+        })
+        .subscribe({ error: () => { /* fallo silencioso */ } });
+    }
   }
 
   private nuevoEquipoManual(): EquipoManual {

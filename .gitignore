@@ -1,6 +1,8 @@
 # ── Secretos ─────────────────────────────────────────────────────────────────
 .env
 .mcp.json
+# Configuración local del backend con credenciales reales (Aiven, JWT, FD key).
+application-local.properties
 
 # ── Base de datos H2 persistente ──────────────────────────────────────────────
 *.mv.db
