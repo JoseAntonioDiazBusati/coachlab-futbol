@@ -11,14 +11,14 @@ Browser (Angular SPA)
         |
 Spring Boot REST API (port 8080)
         |
-        |-- H2 File Database (persistent volume)
+        |-- MySQL 8 (Aiven in production · Docker volume locally)
         |
         |-- football-data.org API (external, HTTP)
 ```
 
-**Local development** (Docker Compose): The Nginx container proxies `/api/*` requests to the backend container on the internal Docker network (`http://backend:8080`).
+**Local development** (Docker Compose): The Nginx container reverse-proxies `/api/*` requests to the backend container on the internal Docker network (`http://backend:8080`), which in turn connects to the `mysql` service.
 
-**Production** (Render): The Angular app calls the backend's public URL (`https://coachlab-futbol.onrender.com/api`) directly, with CORS configured on the Spring Boot backend to allow the frontend origin.
+**Production** (Render): the frontend is a Render Static Site; the Angular app calls the backend's public Render URL directly, with CORS configured on the Spring Boot backend to allow the frontend origin. The backend connects to a managed **MySQL 8 database on Aiven** over SSL.
 
 ## 5.2 Entity-Relationship Diagram
 
@@ -30,6 +30,8 @@ USUARIO
   - nombre
   - email (unique)
   - password (BCrypt hash)
+  - rol (ENTRENADOR | OJEADOR)
+  - fechaRegistro
 
 EQUIPO
   - id (PK)
@@ -37,6 +39,7 @@ EQUIPO
   - categoria
   - temporada
   - ciudad
+  - escudoUrl
   - usuario_id (FK → USUARIO)
 
 JUGADOR
@@ -46,7 +49,7 @@ JUGADOR
   - dorsal
   - posicion
   - edad
-  - fotoUrl
+  - externalId (id in football-data.org, if imported)
   - equipo_id (FK → EQUIPO)
 
 PARTIDO
@@ -56,12 +59,16 @@ PARTIDO
   - esLocal (boolean)
   - golesAFavor
   - golesEnContra
+  - competicion
   - resultado (VICTORIA | EMPATE | DERROTA)
+  - origen (MANUAL | FOOTBALL_DATA)
+  - externalId
   - observaciones
   - equipo_id (FK → EQUIPO)
 
 ESTADISTICA_JUGADOR
   - id (PK)
+  - esTitular (boolean)
   - minutosJugados
   - goles
   - asistencias
@@ -81,29 +88,28 @@ ESTADISTICA_JUGADOR
 ## 5.3 Use Case Diagram
 
 ### Actors
-- **Coach** (authenticated user): The primary actor. All application features are accessed by the coach.
-- **football-data.org API** (external system): Provides competition, team, and player data.
+- **Coach (entrenador)** (authenticated user): manages teams, squads and matches.
+- **Scout (ojeador)** (authenticated user, read-only): compares squads.
+- **football-data.org API** (external system): provides competition, team, and player data.
 
 ### Use Cases
 
 ```
-Coach
-  |-- UC-01: Register account
-  |-- UC-02: Log in
-  |-- UC-03: Log out
+Coach (ENTRENADOR)
+  |-- UC-01: Register account / Log in / Log out
   |-- UC-04: Create team (manual)
   |-- UC-05: Import team from football-data.org API
   |        |-- includes: UC-11 (Browse competitions)
   |        |-- includes: UC-12 (Browse teams in competition)
-  |-- UC-06: Add player to squad
-  |-- UC-07: Edit player data
-  |-- UC-08: Remove player from squad
-  |-- UC-09: Register match
-  |-- UC-10: Edit match data
+  |-- UC-06: Add / edit / remove player
+  |-- UC-09: Register match with per-player statistics
   |-- UC-13: View dashboard (KPIs + IRE + recent form)
   |-- UC-14: View player impact ranking
-  |-- UC-15: Request match prediction (pre-match)
-  |-- UC-16: Browse professional leagues (Liga page)
+  |-- UC-15: Build line-up and request match prediction
+
+Scout (OJEADOR)
+  |-- UC-01: Register account / Log in / Log out
+  |-- UC-17: Compare two squads (app and/or API teams)
 ```
 
 ## 5.4 Main Process Flow Diagrams
@@ -126,7 +132,7 @@ in localStorage
   |
   v
 Redirect to Dashboard
-(or Setup if no team)
+(or Ligas if no team)
 ```
 
 ### Match Registration Flow
@@ -136,22 +142,20 @@ Coach opens Register Match page
         |
         v
 Fill in: date, opponent, home/away,
-         goals for, goals against,
-         observations
+         goals for/against, competition,
+         and per-player statistics
+         (starter, minutes, goals, assists, cards)
         |
         v
-POST /api/equipos/{id}/partidos
+POST /api/equipos/{id}/partidos/full
+   (match + statistics in a single call)
         |
         v
 Backend @PrePersist calculates
 resultado: VICTORIA / EMPATE / DERROTA
         |
         v
-(Optional) Add player statistics
-POST /api/equipos/{id}/jugadores/{jId}/estadisticas
-        |
-        v
-Dashboard KPIs updated on next load
+Dashboard KPIs and rankings updated on next load
 ```
 
 ### IRE Calculation Flow
@@ -186,8 +190,10 @@ All endpoints are prefixed with `/api`. Protected endpoints require `Authorizati
 
 | Method | Endpoint | Auth | Request body | Response |
 |---|---|---|---|---|
-| POST | `/api/auth/register` | Public | `{ nombre, email, password }` | `{ token, email, nombre }` |
-| POST | `/api/auth/login` | Public | `{ email, password }` | `{ token, email, nombre }` |
+| POST | `/api/auth/register` | Public | `{ nombre, email, password, rol? }` | `{ token, email, nombre, rol }` |
+| POST | `/api/auth/login` | Public | `{ email, password }` | `{ token, email, nombre, rol }` |
+
+Write operations (POST/PUT/DELETE under `/api/equipos/**`) require the **ENTRENADOR** role; an **OJEADOR** receives `403`.
 
 ### Teams (Equipos)
 
@@ -218,10 +224,19 @@ All endpoints are prefixed with `/api`. Protected endpoints require `Authorizati
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/api/equipos/{id}/partidos` | Required | List all matches |
-| POST | `/api/equipos/{id}/partidos` | Required | Register a match |
-| GET | `/api/equipos/{id}/partidos/{pId}` | Required | Get match by ID |
-| PUT | `/api/equipos/{id}/partidos/{pId}` | Required | Update match data |
-| DELETE | `/api/equipos/{id}/partidos/{pId}` | Required | Delete match |
+| POST | `/api/equipos/{id}/partidos/full` | ENTRENADOR | Register a match with its per-player statistics |
+| GET | `/api/equipos/{id}/partidos/{pId}` | Required | Get match detail (with statistics) |
+| GET | `/api/equipos/{id}/partidos/{pId}/estadisticas` | Required | Get the match statistics |
+| PUT | `/api/equipos/{id}/partidos/{pId}` | ENTRENADOR | Update match data |
+| DELETE | `/api/equipos/{id}/partidos/{pId}` | ENTRENADOR | Delete match |
+| GET | `/api/equipos/{id}/partidos/preview-fd` | Required | Editable preview of a football-data match |
+
+### Comparator / exploration (read-only)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/explorar/equipos` | Required | List all app teams (for comparison) |
+| GET | `/api/explorar/equipos/{id}/jugadores` | Required | Squad/ranking of any team |
 
 ### football-data.org Proxy (FD)
 
@@ -229,8 +244,9 @@ All endpoints are prefixed with `/api`. Protected endpoints require `Authorizati
 |---|---|---|---|
 | GET | `/api/fd/competiciones` | Required | List available competitions |
 | GET | `/api/fd/competiciones/{code}/equipos` | Required | List teams in competition |
-| GET | `/api/fd/equipos/{id}/plantilla` | Required | Get squad of a professional team |
-| GET | `/api/fd/equipos/{id}/partidos` | Required | Get recent matches of a professional team |
+| GET | `/api/fd/teams/{id}` | Required | Get squad of a professional team |
+| GET | `/api/fd/teams/{id}/matches` | Required | Get recent matches of a professional team |
+| GET | `/api/fd/competiciones/{code}/scorers` | Required | Get top scorers of a competition |
 
 ### Error Responses
 

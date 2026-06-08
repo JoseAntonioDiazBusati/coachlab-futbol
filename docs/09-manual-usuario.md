@@ -2,9 +2,17 @@
 
 ## 9.1 Accessing the Application
 
-CoachLab is available at: **https://coachlab-futbol-eeiq.onrender.com**
+CoachLab is available at: **https://coachlab-futbol-ui5w.onrender.com/**
 
 No installation is required. The application runs entirely in the browser and is compatible with any modern browser (Chrome, Firefox, Edge, Safari).
+
+**Demo accounts** (password `coachlab123` for all of them):
+
+| Email | Role |
+|---|---|
+| `entrenador1@coachlab.test` | Coach with a 15-player squad |
+| `entrenador2@coachlab.test` | Coach with an 18-player squad |
+| `ojeador@coachlab.test` | Scout (compares squads) |
 
 **Important note (free tier):** The first request after a period of inactivity may take up to 30 seconds while the backend wakes up. This is normal behaviour on Render's free tier.
 
@@ -13,20 +21,20 @@ No installation is required. The application runs entirely in the browser and is
 1. Open the application URL. You will see the landing page with a "Get started" call to action.
 2. Click **Get started** or the **Login / Register** button in the navigation bar.
 3. In the authentication panel, select the **Register** tab.
-4. Enter your full name, email address, and a password.
+4. Enter your full name, account type (Coach or Scout), email address, and a password.
 5. Click **Create account**.
-6. On success, you will be redirected automatically to the Setup page to configure your first team.
+6. On success, you are redirected automatically to the **Ligas** page to create or import your first team (coaches), or to the comparator (scouts).
 
 ## 9.3 Logging In
 
 1. Open the application and click **Login / Register**.
 2. Enter your registered email and password.
 3. Click **Sign in**.
-4. You will be redirected to the Dashboard if you have already set up a team, or to the Setup page if this is your first login.
+4. You will be redirected to the Dashboard if you already have a team, or to the **Ligas** page otherwise.
 
 ## 9.4 Setting Up Your Team
 
-The Setup page is shown once, the first time you log in. You can choose between two methods:
+From the **Ligas** page you can create a team in two ways:
 
 ### Method 1 — Manual Creation
 
@@ -50,7 +58,7 @@ Navigate to the **Squad** (Plantilla) section using the sidebar.
 ### Adding a Player
 
 1. Click **Add player** (or the "+" button).
-2. Fill in the form: first name (required), last name, squad number, position, age, photo URL.
+2. Fill in the form: first name (required, letters only), last name, squad number (1–99), position, age.
 3. Click **Save**.
 
 ### Editing a Player
@@ -79,8 +87,8 @@ Navigate to **Register Match** (Registrar Partido).
    - **Goals scored**: Goals your team scored.
    - **Goals conceded**: Goals the opponent scored.
    - **Notes**: Optional coach observations about the match.
-2. Click **Save match**. The result (WIN/DRAW/LOSS) is calculated automatically.
-3. Optionally, add individual player statistics for this match (minutes played, goals, assists, yellow cards, red cards).
+2. In the same screen, add the per-player statistics for the match: **starter**, minutes played, goals, assists, yellow cards and red cards.
+3. Click **Save match**. The result (WIN/DRAW/LOSS) is calculated automatically and the statistics feed the dashboard and the impact ranking.
 
 ## 9.7 Using the Dashboard
 
@@ -120,6 +128,17 @@ Navigate to **Liga**.
 
 This section is useful as a reference for tactical analysis or when preparing for a match against a team that plays a style similar to a professional club.
 
+## 9.9b Comparing Squads (Scout)
+
+If you log in with the **Scout (ojeador)** role, you land on the comparator (in the
+Pre-Match section). For each of the two columns you choose a source:
+
+1. **App team** — pick any team registered in the application.
+2. **API team** — pick a competition and a club from football-data.org.
+
+The two squads are shown side by side (players, positions and, for app teams, the impact
+totals). The scout role is read-only and cannot edit squads or matches.
+
 ## 9.10 Logging Out
 
 Click your user name or the logout icon in the navigation bar and select **Log out**. Your session will be cleared immediately.
@@ -138,5 +157,6 @@ A: This is expected behaviour. CoachLab is hosted on Render's free tier, which p
 **Q: The football-data.org competition list is not loading.**
 A: This can happen if the API key quota has been exceeded (free tier limit: 10 requests/minute) or if the external service is temporarily unavailable. Wait a minute and try again.
 
-**Q: My match data disappeared after logging in again.**
-A: Data is stored in a persistent H2 database file on the server. If a redeployment occurred on a new Render instance, the disk may not have been remounted. This is a known limitation of the free tier. Consider exporting important data manually.
+**Q: Is my data kept between sessions?**
+A: Yes. Data is stored in a managed MySQL database (Aiven), external to the application
+server, so it persists across restarts and redeployments.
