@@ -29,11 +29,17 @@ JWT_SECRET=replace-this-with-a-secure-random-string-at-least-32-characters
 # football-data.org API key — obtain at football-data.org (free tier available)
 FD_API_KEY=your_football_data_api_key_here
 
-# H2 database file path (used inside Docker volume)
-H2_PATH=/data/coachlabdb
+# MySQL database (used by the mysql and backend services in docker-compose)
+DB_NAME=coachlab
+DB_USER=coachlab
+DB_PASSWORD=change-this-password
+MYSQL_ROOT_PASSWORD=change-this-root-password
+
+# For an EXTERNAL MySQL (Aiven, Railway...) that requires SSL, set the full JDBC URL:
+# DB_URL=jdbc:mysql://host:port/database?sslMode=REQUIRED&serverTimezone=UTC
 ```
 
-If `FD_API_KEY` is not provided, the backend defaults to the key configured in `application.properties`. This is acceptable for development but must be replaced in production.
+If `FD_API_KEY` is not provided, the football-data import features are disabled, but manual team creation works the same.
 
 ## 3.3 Local Installation with Docker Compose
 
@@ -83,33 +89,33 @@ docker compose down -v
 
 ### Backend
 
+The application always uses **MySQL**. To run it locally, use the `local` profile,
+which reads connection details and secrets from a git-ignored
+`application-local.properties` file pointing at a MySQL instance (the one from
+`docker compose up mysql`, a local install, or a managed one such as Aiven).
+
 **Step 1 — Navigate to the backend directory**
 
 ```bash
 cd backend/coachlab-springboot/coachlab
 ```
 
-**Step 2 — Set environment variables**
-
-On Linux/macOS:
-```bash
-export JWT_SECRET=dev-secret-change-me
-export FD_API_KEY=your_api_key
-```
-
-On Windows (PowerShell):
-```powershell
-$env:JWT_SECRET = "dev-secret-change-me"
-$env:FD_API_KEY = "your_api_key"
-```
-
-**Step 3 — Start the Spring Boot application**
+**Step 2 — Create the local configuration**
 
 ```bash
-mvn spring-boot:run
+cp src/main/resources/application-local.properties.example \
+   src/main/resources/application-local.properties
+# Fill in DB_URL/user/password, FD_API_KEY and JWT_SECRET
 ```
 
-The backend starts at `http://localhost:8080`. The H2 console is accessible at `http://localhost:8080/h2-console` with JDBC URL `jdbc:h2:file:./data/coachlabdb`.
+**Step 3 — Start the Spring Boot application with the local profile**
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+The backend starts at `http://localhost:8080`. The OpenAPI/Swagger UI is available at
+`http://localhost:8080/swagger-ui.html`. (The test suite uses an in-memory H2 database.)
 
 ### Frontend
 
@@ -119,10 +125,10 @@ The backend starts at `http://localhost:8080`. The H2 console is accessible at `
 cd frontend
 ```
 
-**Step 2 — Install dependencies**
+**Step 2 — Install dependencies (reproducible)**
 
 ```bash
-npm install
+npm ci
 ```
 
 **Step 3 — Start the development server**

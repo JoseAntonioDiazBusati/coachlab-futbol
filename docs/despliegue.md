@@ -2,7 +2,7 @@
 
 > **Módulo:** Despliegue de Aplicaciones Web  
 > **Proyecto:** CoachLab Fútbol — Plataforma de análisis deportivo  
-> **URL producción:** https://coachlab-futbol-eeiq.onrender.com  
+> **URL producción:** https://coachlab-futbol-ui5w.onrender.com/  
 > **Repositorio:** https://github.com/joseantoniodiazbusati/coachlab-futbol
 
 ---
@@ -34,10 +34,10 @@ CoachLab Fútbol sigue una arquitectura web **cliente-servidor de tres capas** c
                                 │ HTTP :80
 ┌───────────────────────────────▼─────────────────────────────────┐
 │                  CAPA PRESENTACIÓN                              │
-│           Frontend — Angular 19 + Nginx                         │
+│           Frontend — Angular 21 + Nginx                         │
 │    • SPA (Single Page Application)                              │
 │    • Nginx sirve los estáticos compilados                       │
-│    • Reverse proxy /api/* → backend                             │
+│    • Reverse proxy /api/* → backend (en local con Compose)      │
 │    Imagen Docker: coachlab-frontend                             │
 └───────────────────────────────┬─────────────────────────────────┘
                                 │ HTTP :8080 (red interna Docker)
@@ -52,9 +52,9 @@ CoachLab Fútbol sigue una arquitectura web **cliente-servidor de tres capas** c
                                 │ JDBC
 ┌───────────────────────────────▼─────────────────────────────────┐
 │                  CAPA DE DATOS                                  │
-│              H2 Database (fichero persistente)                  │
-│    • Volumen Docker: db-data:/data                              │
-│    • Fichero: /data/coachlabdb.mv.db                            │
+│              MySQL 8                                            │
+│    • Local (Compose): servicio mysql + volumen db-data         │
+│    • Producción: MySQL gestionado en Aiven (SSL)               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,11 +62,11 @@ CoachLab Fútbol sigue una arquitectura web **cliente-servidor de tres capas** c
 
 | Capa | Tecnología | Versión | Rol |
 |------|-----------|---------|-----|
-| Presentación | Angular | 19 | SPA cliente |
+| Presentación | Angular | 21 | SPA cliente |
 | Servidor web | Nginx | Alpine | Servir SPA + proxy inverso |
 | Lógica | Spring Boot | 3.4.1 | API REST |
 | Servidor apps | Tomcat (embebido) | — | Contenedor de servlets |
-| Datos | H2 Database | — | BD relacional persistente |
+| Datos | MySQL | 8 | BD relacional (Aiven en producción) |
 | Contenerización | Docker + Compose | 24+ | Empaquetado y orquestación |
 | Despliegue en la nube | Render.com | — | PaaS hosting |
 | CI/CD | GitHub Actions | — | Pipeline automatizado |
@@ -79,6 +79,26 @@ El fichero `docker-compose.yml` en la raíz del repositorio define los dos servi
 # docker-compose.yml (raíz del proyecto)
 services:
 
+  mysql:
+    image: mysql:8
+    container_name: coachlab-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-coachlab}
+      MYSQL_USER: ${DB_USER:-coachlab}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-coachlab}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   backend:
     image: joseantoniodiazbusati/coachlab-backend:latest
     build:
@@ -90,10 +110,15 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       JWT_SECRET: ${JWT_SECRET}
       FD_API_KEY: ${FD_API_KEY}
-      H2_PATH: /data/coachlabdb
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-coachlab}
+      DB_USER: ${DB_USER:-coachlab}
+      DB_PASSWORD: ${DB_PASSWORD:-coachlab}
       COACHLAB_CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:80
-    volumes:
-      - db-data:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - internal
     healthcheck:
@@ -127,10 +152,10 @@ networks:
 ```
 
 **Puntos clave de la arquitectura:**
-- Ambos servicios están en la red interna `internal` (tipo bridge), aislados del exterior.
-- Solo el frontend expone un puerto al host (`80:80`); el backend no es accesible directamente desde fuera.
-- El frontend espera a que el backend esté sano (`service_healthy`) antes de arrancar.
-- Los datos de H2 se persisten en el volumen `db-data`, por lo que sobreviven a reinicios.
+- Los tres servicios están en la red interna `internal` (tipo bridge), aislados del exterior.
+- Solo el frontend expone un puerto al host (`80:80`); el backend y MySQL no son accesibles directamente desde fuera.
+- El backend espera a que MySQL esté sano y el frontend a que el backend lo esté (`service_healthy`).
+- Los datos de MySQL se persisten en el volumen `db-data`, por lo que sobreviven a reinicios. En producción la BD es MySQL gestionada en Aiven.
 
 ---
 
@@ -281,14 +306,14 @@ server.servlet.context-path=/
 # Fuerza modo servlet (Tomcat) aunque webflux esté en el classpath
 spring.main.web-application-type=servlet
 
-# Base de datos H2 persistente en volumen Docker
-spring.datasource.url=jdbc:h2:file:${H2_PATH:./data/coachlabdb};DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-spring.datasource.driver-class-name=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
+# Base de datos MySQL. Para un MySQL externo con SSL (Aiven) basta con definir DB_URL
+# con la cadena JDBC completa; si no, se compone desde DB_HOST/DB_PORT/DB_NAME.
+spring.datasource.url=${DB_URL:jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:coachlab}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+spring.datasource.username=${DB_USER:coachlab}
+spring.datasource.password=${DB_PASSWORD:coachlab}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 
-# JPA / Hibernate
-spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+# JPA / Hibernate (el dialecto MySQL lo detecta Hibernate desde la conexión)
 spring.jpa.hibernate.ddl-auto=update
 
 # JWT
@@ -335,7 +360,7 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 ```bash
 # Health check del Actuator de Spring Boot
 curl http://localhost:8080/actuator/health
-# {"status":"UP","components":{"db":{"status":"UP","details":{"database":"H2"}}}}
+# {"status":"UP","components":{"db":{"status":"UP","details":{"database":"MySQL"}}}}
 ```
 
 ---
@@ -352,6 +377,15 @@ La configuración sensible nunca está hardcodeada en el código; se inyecta med
 # .env  (excluido de git mediante .gitignore)
 JWT_SECRET=clave-secreta-de-al-menos-256-bits-para-firma-JWT
 FD_API_KEY=tu-api-key-de-football-data.org
+
+# MySQL (servicios mysql y backend de docker-compose)
+DB_NAME=coachlab
+DB_USER=coachlab
+DB_PASSWORD=cambia-esta-clave
+MYSQL_ROOT_PASSWORD=cambia-esta-clave-root
+
+# Para un MySQL externo con SSL (Aiven), en su lugar:
+# DB_URL=jdbc:mysql://host:puerto/basedatos?sslMode=REQUIRED&serverTimezone=UTC
 ```
 
 ### `.gitignore` relevante
@@ -393,105 +427,77 @@ El repositorio sigue el flujo **trunk-based development**: desarrollo en ramas d
 
 ### Pipeline CI/CD: GitHub Actions
 
-Fichero: `.github/workflows/docker-image.yml`
+Hay **dos workflows** separados:
+
+**1. `test.yml` — tests en cada Pull Request a `main`**
 
 ```yaml
-name: CI / Docker Build & Push
-
+name: Tests
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
-  # 1. Tests del frontend (Angular/Vitest)
-  test-frontend:
+  test-frontend:   # npm ci + npm test (Vitest)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
+    defaults: { run: { working-directory: ./frontend } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: npm ci
       - run: npm test
-
-  # 2. Tests del backend (JUnit/Maven)
-  test-backend:
+  test-backend:    # mvn test (JUnit)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend/coachlab-springboot/coachlab
+    defaults: { run: { working-directory: ./backend/coachlab-springboot/coachlab } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
+        with: { distribution: temurin, java-version: 17, cache: maven }
       - run: mvn test
+```
 
-  # 3. Build y push de la imagen Docker del backend (solo en push a main)
-  docker-backend:
-    needs: [test-backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+**2. `docker-image.yml` — build y publicación de imágenes en cada push a `main`**
+
+```yaml
+name: CI / Docker Build & Push
+on:
+  push:
+    branches: [main]
+jobs:
+  docker-backend:    # build + push joseantoniodiazbusati/coachlab-backend:latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        with: { username: ${{ secrets.DOCKERHUB_USERNAME }}, password: ${{ secrets.DOCKERHUB_TOKEN }} }
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
         with:
           context: ./backend/coachlab-springboot/coachlab
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/coachlab-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # 4. Build y push de la imagen Docker del frontend
-  docker-frontend:
-    needs: [test-frontend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      # ... (ídem, con context: ./frontend)
-
-  # 5. Trigger del deploy en Render (webhook)
-  deploy:
+  docker-frontend:   # ídem con context ./frontend
+    runs-on: ubuntu-latest
+    steps: [ ... ]
+  deploy:            # opcional: webhooks de Render
     needs: [docker-backend, docker-frontend]
     steps:
-      - name: Deploy backend
-        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
-      - name: Deploy frontend
-        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
+      - run: '[ -n "$HOOK" ] && curl -fsS -X POST "$HOOK" || echo "sin hook"'
 ```
 
 ### Flujo completo del pipeline
 
 ```
-Push a main
-    │
-    ├── test-frontend  ──► npm test (Vitest)
-    │
-    └── test-backend   ──► mvn test (JUnit)
-              │
-              ▼ (ambos OK)
-    ┌──────────────────────┐
-    │  docker-backend      │  Build multi-stage → push Docker Hub
-    │  docker-frontend     │  Build multi-stage → push Docker Hub
-    └──────────┬───────────┘
-               │
-               ▼
-    ┌──────────────────────┐
-    │  deploy (Render)     │  Webhook → Render descarga imagen → redeploy
-    └──────────────────────┘
+Pull Request → main            Push → main
+      │                              │
+   test.yml                     docker-image.yml
+   ├── test-frontend (Vitest)   ├── docker-backend  (build + push :latest)
+   └── test-backend  (JUnit)    ├── docker-frontend (build + push :latest)
+                                └── deploy (webhook → Render descarga imagen → redeploy)
 ```
+
+> Las pruebas dan feedback en las Pull Requests; la construcción y publicación de imágenes
+> se ejecuta al integrar en `main`. Render descarga la imagen `:latest` y redespliega.
 
 **Secretos configurados en GitHub Actions** (Settings → Secrets):
 - `DOCKERHUB_USERNAME` — usuario de Docker Hub
@@ -640,7 +646,7 @@ Verificación manual del estado de salud:
 ```bash
 # Desde el host
 curl -s http://localhost:8080/actuator/health
-# {"status":"UP","components":{"db":{"status":"UP","details":{"database":"H2"}}}}
+# {"status":"UP","components":{"db":{"status":"UP","details":{"database":"MySQL"}}}}
 
 # Comprobar el estado del health check de Docker
 docker inspect coachlab-backend --format='{{.State.Health.Status}}'
@@ -677,14 +683,14 @@ curl -s https://coachlab-futbol.onrender.com/actuator/health
 # {"status":"UP"}
 
 # Verificar que la SPA está disponible
-curl -I https://coachlab-futbol-eeiq.onrender.com
+curl -I https://coachlab-futbol-ui5w.onrender.com
 # HTTP/2 200
 # content-type: text/html
 # x-frame-options: SAMEORIGIN
 
 # Verificar resolución DNS y latencia
-ping -c 4 coachlab-futbol-eeiq.onrender.com
-# PING coachlab-futbol-eeiq.onrender.com: 56 bytes
+ping -c 4 coachlab-futbol-ui5w.onrender.com
+# PING coachlab-futbol-ui5w.onrender.com: 56 bytes
 # 4 packets transmitted, 4 received, 0% packet loss
 ```
 
@@ -709,10 +715,11 @@ ping -c 4 coachlab-futbol-eeiq.onrender.com
               │  Spring Boot :8080          │
               │  IP: 172.20.0.2             │
               └──────────┬──────────────────┘
-                         │ JDBC (fichero local)
+                         │ JDBC
               ┌──────────▼──────────────────┐
+              │  Contenedor MySQL :3306     │
               │  Volumen Docker: db-data    │
-              │  /data/coachlabdb.mv.db     │
+              │  (en producción: Aiven SSL) │
               └─────────────────────────────┘
 ```
 

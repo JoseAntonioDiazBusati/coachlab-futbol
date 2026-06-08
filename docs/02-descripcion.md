@@ -10,10 +10,11 @@ CoachLab implements a complete stateless authentication system based on JSON Web
 - **Login**: The user authenticates with email and password. On success, a JWT token is returned and stored in the browser's `localStorage`.
 - **Session management**: All subsequent requests to protected endpoints include the JWT in the `Authorization: Bearer <token>` header, managed automatically by an Angular HTTP interceptor.
 - **Logout**: The token is removed from `localStorage`, ending the session without any server-side call.
+- **Roles**: each account has a role — **ENTRENADOR** (coach), who manages their own squad and matches, or **OJEADOR** (scout), a read-only role that compares squads. Write operations are restricted to coaches (a scout receives `403`); the JWT carries the role as a claim.
 
 ### 2.1.2 Initial Setup — Team Creation
 
-When a user authenticates for the first time, they are redirected to the Setup page, which offers two methods for creating a team:
+When a user logs in, they are redirected to their dashboard if they already have a team, or to the **Ligas** page otherwise, which offers two methods for creating a team:
 
 **Method 1 — Manual creation:**
 The user enters the team name (required), category, season, and city. After creation, they are prompted to add players to the squad immediately.
@@ -25,14 +26,14 @@ The user browses the available professional competitions (La Liga, Premier Leagu
 
 The Squad (Plantilla) page displays all players registered for the team. For each player, the following attributes are stored:
 
-- First name (required)
-- Last name
-- Squad number (dorsal)
+- First name (required, letters only)
+- Last name (letters only)
+- Squad number (dorsal, between 1 and 99)
 - Position (Goalkeeper, Defender, Midfielder, Forward)
-- Age
-- Photo URL
+- Age (positive)
 
-The coach can add new players, edit existing ones, and remove players from the squad.
+Forms are validated both on the client and the server (alphabetic names, dorsal 1–99,
+positive age). The coach can add new players, edit existing ones, and remove players from the squad.
 
 A **Player Impact Ranking** is available, which sorts players by a composite impact score based on their individual match statistics (goals, assists, yellow cards, red cards).
 
@@ -48,7 +49,8 @@ The Match Registration page allows the coach to record the details of each match
 
 The result (WIN, DRAW, LOSS) is calculated automatically by the backend based on the goal data.
 
-Individual player statistics can be associated with each match:
+Individual player statistics are recorded within the same match screen:
+- Starter (titularidad)
 - Minutes played
 - Goals
 - Assists
@@ -87,7 +89,14 @@ The Pre-Match (Prepartido) page provides a match prediction tool. The coach sele
 
 ### 2.1.7 Liga Page
 
-The Liga page allows the coach to browse professional competitions available via the football-data.org API, view the clubs in each competition, and explore squad data of professional teams as a reference.
+The Liga page allows the coach to browse professional competitions available via the football-data.org API, view the clubs in each competition, and import a team (its squad and recent matches with the real scoreline) into the application.
+
+### 2.1.8 Squad Comparator (Scout)
+
+The **OJEADOR** (scout) role has a comparator that places two squads side by side.
+Each side can be either a team registered in the application or a professional team
+fetched from the football-data.org API, which lets the scout compare line-ups and
+rosters beyond their own organisation (read-only).
 
 ## 2.2 User Interface and User Experience
 
@@ -96,7 +105,7 @@ CoachLab follows a dark-themed design with green accent colours, consistent with
 - **Mobile-first**: Although primarily used on desktop, all layouts are responsive.
 - **Single Page Application**: Navigation between sections does not reload the page. Angular Router handles client-side routing.
 - **Minimal cognitive load**: Each page has a single clear purpose. KPIs are presented as cards with large, prominent numbers.
-- **Progressive disclosure**: The setup wizard guides new users step by step. Advanced features (player statistics per match) are accessible but not forced on the user.
+- **Progressive disclosure**: new users are guided to create or import a team from the Ligas page. Advanced features (per-match player statistics) are accessible but not forced on the user.
 
 The application uses the **Outfit** font for headings and **Inter** for body text, both served via Google Fonts.
 
@@ -104,11 +113,13 @@ The application uses the **Outfit** font for headings and **Inter** for body tex
 
 ### Target Users
 
-The primary target user is an **amateur or youth football coach** who:
-- Manages a team at regional, youth, or veterans level.
-- Has basic digital literacy but is not a technical specialist.
-- Currently tracks data manually or in a spreadsheet.
-- Wants objective data to support tactical decisions.
+There are two user profiles:
+
+- **Coach (entrenador)** — an amateur or youth football coach who manages a team at
+  regional, youth, or veterans level, has basic digital literacy, currently tracks
+  data manually or in a spreadsheet, and wants objective data to support tactical decisions.
+- **Scout (ojeador)** — a read-only profile that works alongside a coach and compares
+  squads of other teams (from the app or from the API).
 
 ### Primary Use Cases
 
@@ -119,5 +130,6 @@ The primary target user is an **amateur or youth football coach** who:
 | UC-03 | Coach | Add players to the squad |
 | UC-04 | Coach | Record a match result with player statistics |
 | UC-05 | Coach | View team performance KPIs on the dashboard |
-| UC-06 | Coach | Consult the IRE before a match against a known opponent |
-| UC-07 | Coach | Browse professional leagues for tactical reference |
+| UC-06 | Coach | Build the line-up and consult the match prediction |
+| UC-07 | Coach | Browse and import professional leagues |
+| UC-08 | Scout | Compare two squads side by side (app and/or API teams) |

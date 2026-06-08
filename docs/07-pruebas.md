@@ -12,9 +12,15 @@ The backend tests use:
 - **JUnit 5** as the test framework.
 - **Spring Boot Test** (`@SpringBootTest`) for integration tests with the full application context.
 - **MockMvc** for testing REST controller endpoints without starting a full HTTP server.
-- **H2 in-memory mode** as the test database (automatically configured by Spring Boot Test).
+- **H2 in-memory mode** as the test database (used only by the test suite).
 
-Test classes are located in `backend/coachlab-springboot/coachlab/src/test/`.
+Test classes are located in `backend/coachlab-springboot/coachlab/src/test/`. The suite
+contains **33 tests**, including:
+
+- `AuthControllerTest` — login/registration and HTTP codes (200/401/409).
+- `JugadorServiceTest` / `PartidoServiceTest` — owner isolation (accessing another user's resource returns 404).
+- `RolesSecurityTest` — a scout cannot write (403) and can compare (200).
+- `PartidoServiceTest` / `FdMatchMapperTest` — match-with-statistics flow and football-data mapping.
 
 The CI workflow runs backend tests with:
 ```bash
@@ -24,18 +30,15 @@ mvn test
 ### 7.2.2 Frontend — Unit Tests (Angular)
 
 The frontend tests use:
-- **Jasmine** as the test framework.
-- **Karma** as the test runner.
+- **Vitest** as the test framework and runner (`ng test --no-watch`).
 - **Angular TestBed** for component and service testing.
 
-Test files follow the Angular convention of `*.spec.ts` co-located with each component or service.
+Test files follow the Angular convention of `*.spec.ts` co-located with each component or service. The suite contains **224 tests** covering services (auth, football-data, players) and components (liga page, register-match page, etc.).
 
 The CI workflow runs frontend tests with:
 ```bash
 npm test
 ```
-
-Key test file: `football-data.service.spec.ts`, which verifies that the `FootballDataService` constructs the correct API URLs for competitions, teams, and squad endpoints.
 
 ### 7.2.3 Manual Integration Testing
 
@@ -45,7 +48,7 @@ The test scenarios covered:
 
 | Test ID | Scenario | Expected Result |
 |---|---|---|
-| T-01 | Register a new account | JWT token returned; redirect to Setup |
+| T-01 | Register a new account | JWT token returned; redirect to Ligas (or Dashboard if a team already exists) |
 | T-02 | Login with valid credentials | JWT stored; redirect to Dashboard |
 | T-03 | Login with invalid credentials | 401 error message shown |
 | T-04 | Create team manually | Team saved; redirect to player addition |
@@ -60,7 +63,8 @@ The test scenarios covered:
 
 ## 7.3 CI Test Execution
 
-The GitHub Actions workflow (`.github/workflows/docker-image.yml`) runs both frontend and backend tests automatically on every push and pull request targeting `main`.
+The test suites run via GitHub Actions (`.github/workflows/test.yml`) on every
+**pull request** targeting `main`:
 
 ```yaml
 test-frontend:
@@ -77,7 +81,9 @@ test-backend:
     - run: mvn test
 ```
 
-A deployment to production only proceeds if both test jobs pass.
+A separate workflow (`docker-image.yml`) builds and publishes the Docker images on
+**push to `main`**. This keeps the test feedback on pull requests while the image
+build/publish stays on the protected branch.
 
 ## 7.4 Test Coverage
 
