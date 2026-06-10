@@ -535,9 +535,9 @@ docker build \
 
 # Verificar que las imágenes se han creado
 docker images | grep coachlab
-# joseantoniodiazbusati/coachlab-backend   latest   abc123...   280MB
-# joseantoniodiazbusati/coachlab-frontend  latest   def456...   52MB
 ```
+
+![Imágenes Docker construidas en local (docker images): backend y frontend](img-docker/img.png)
 
 ### Publicación en Docker Hub
 
@@ -549,6 +549,10 @@ docker login -u joseantoniodiazbusati
 docker push joseantoniodiazbusati/coachlab-backend:latest
 docker push joseantoniodiazbusati/coachlab-frontend:latest
 ```
+
+![Login en Docker Hub (docker login): Login Succeeded](img-docker/img_1.png)
+
+![Publicación de las imágenes en Docker Hub (docker push)](img-docker/img_2.png)
 
 ### Uso de las imágenes publicadas (despliegue local)
 
@@ -587,8 +591,10 @@ Solo la etapa `runtime` se incluye en la imagen final publicada.
 # Inspeccionar el tamaño final de la imagen del backend
 docker inspect joseantoniodiazbusati/coachlab-backend:latest \
   --format='{{.Size}}' | numfmt --to=iec
-# ~180M
+# ~193M
 ```
+
+![Tamaño final optimizado de la imagen del backend (docker inspect): 193 MB gracias al build multi-stage](img-docker/img_4.png)
 
 ---
 
@@ -620,6 +626,10 @@ docker network inspect coachlab-futbol_internal
 #   }
 # ]
 ```
+
+![Red interna coachlab-futbol_internal (bridge, subred 172.19.0.0/16)](img-docker/img_5.png)
+
+![Contenedores conectados a la red interna y metadatos de Docker Compose](img-docker/img_6.png)
 
 ### Puertos expuestos
 
@@ -693,6 +703,10 @@ ping -c 4 coachlab-futbol-ui5w.onrender.com
 # PING coachlab-futbol-ui5w.onrender.com: 56 bytes
 # 4 packets transmitted, 4 received, 0% packet loss
 ```
+
+![Verificación de la SPA en producción (curl -I): HTTP/2 200](img-docker/img_8.png)
+
+![Resolución DNS y latencia de la URL de producción (ping)](img-docker/img_9.png)
 
 ### Esquema de red completo
 
